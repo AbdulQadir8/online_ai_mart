@@ -2,9 +2,11 @@ version: '3.8'
 name: template01
 services:
   api:
+    image: todo-mart-api
     build:
       context: ./todo
       dockerfile: Dockerfile.dev
+    restart: always # Any Issue when RUnning Contianer = ShutDown
     volumes:
       - ./todo:/code  # Sync local development directory with the container
     depends_on:
@@ -13,6 +15,7 @@ services:
     ports:
       - "8000:8000"  # Expose container port 8000 to host port 8000  
   api2:
+    image: ms2-mart-api
     build:
       context: ./microservice_02
       dockerfile: Dockerfile.dev
@@ -23,18 +26,67 @@ services:
         - broker
     ports:
       - "8002:8000"  # Expose container port 8000 to host port 8000  
+  product-service:
+    image: product-mart-api
+    build:
+      context: ./product-service
+      dockerfile: Dockerfile.dev
+    volumes:
+      - ./product-service:/code  # Sync local development directory with the container
+    depends_on:
+        - broker
+        - postgres_product_db
+    ports:
+      - "8005:8000"  # Expose container port 8000 to host port 8000  
+  inventory-service:
+    image: inventory-mart-api
+    build:
+      context: ./inventory-service
+      dockerfile: Dockerfile.dev
+    volumes:
+      - ./inventory-service:/code  # Sync local development directory with the container
+    depends_on:
+        - broker
+        - postgres_inventory_db
+    ports:
+      - "8006:8000"  # Expose container port 8000 to host port 8000 
   postgres_db:
     image: postgres:latest  # Use the official PostgreSQL image
     restart: always
     container_name: PostgresCont
     environment:
-        - POSTGRES_USER=ziakhan
+        - POSTGRES_USER=usamaali
         - POSTGRES_PASSWORD=my_password
         - POSTGRES_DB=mydatabase
     ports:
-        - '5433:5432'
+        - '5480:5432'
     volumes:
         - postgres_db:/var/lib/postgresql/data
+
+  postgres_product_db:
+    image: postgres:latest  # Use the official PostgreSQL image
+    restart: always
+    container_name: PostgresProductsCont
+    environment:
+        - POSTGRES_USER=usamaali
+        - POSTGRES_PASSWORD=my_password
+        - POSTGRES_DB=product_database
+    ports:
+        - '5481:5432'
+    volumes:
+        - postgres_product_db:/var/lib/postgresql/data
+  postgres_inventory_db:
+    image: postgres:latest  # Use the official PostgreSQL image
+    restart: always
+    container_name: PostgresInventoryCont
+    environment:
+        - POSTGRES_USER=usamaali
+        - POSTGRES_PASSWORD=my_password
+        - POSTGRES_DB=inventory_database
+    ports:
+        - '5482:5432'
+    volumes:
+        - postgres_inventory_db:/var/lib/postgresql/data
   broker:
     image: apache/kafka:3.7.0
     hostname: broker
@@ -70,6 +122,10 @@ services:
       - broker
 volumes:
   postgres_db:
+    driver: local
+  postgres_product_db:
+    driver: local
+  postgres_inventory_db:
     driver: local
 networks:
   default:
