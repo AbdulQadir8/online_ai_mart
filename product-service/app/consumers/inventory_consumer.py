@@ -19,11 +19,11 @@ async def consume_inventory_messages(topic, bootstrap_servers):
     try:
         # Continuously listen for messages.
         async for message in consumer:
-            print("\n\n RAW INVENTORY MESSAGE\n\n")
+            print("\n\n RAW INVENTORY MESSAGE\n\n ")
             print(f"Received message on topic {message.topic}")
             print(f"Message Value {message.value}")
 
-            # 1. Extract Product Id
+            # 1. Extract Poduct Id
             inventory_data = json.loads(message.value.decode())
             product_id = inventory_data["product_id"]
             print("PRODUCT ID", product_id)
@@ -37,11 +37,11 @@ async def consume_inventory_messages(topic, bootstrap_servers):
                 if product is None:
                     pass
                     # email_body = chat_completion(f"Admin has Sent InCorrect Product. Write Email to Admin {product_id}")
-             
+                    
                 if product is not None:
-                    # - Write New Topic
+                        # - Write New Topic
                     print("PRODUCT VALIDATION CHECK NOT NONE")
-
+                    
                     producer = AIOKafkaProducer(
                         bootstrap_servers='broker:19092')
                     await producer.start()
@@ -53,7 +53,7 @@ async def consume_inventory_messages(topic, bootstrap_servers):
                     finally:
                         await producer.stop()
 
-            #Here you can add code to process each message.
+            # Here you can add code to process each message.
             # Example: parse the message, store it in a database, etc.
     finally:
         # Ensure to close the consumer when done.
