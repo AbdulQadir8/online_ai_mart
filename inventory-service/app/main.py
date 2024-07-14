@@ -10,7 +10,7 @@ import json
 
 from app import settings
 from app.db_engine import engine
-from app.models.inventory_model import InventoryItem
+from app.models.inventory_model import InventoryItem, InventoryItemUpdate
 from app.crud.inventory_crud import add_new_inventory_item, delete_inventory_item_by_id, get_all_inventory_items, get_inventory_item_by_id
 from app.deps import get_session, get_kafka_producer
 from app.consumers.add_stock_consumer import consume_messages
@@ -29,7 +29,8 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
     task = asyncio.create_task(consume_messages(
         "inventory-add-stock-response", 'broker:19092'))
-    print("\n\n LIFESPAN created!! \n\n")
+        
+
     yield
 
 
@@ -76,22 +77,29 @@ def single_inventory_item(item_id: int, session: Annotated[Session, Depends(get_
 
 
 @app.delete("/manage-inventory/{item_id}", response_model=dict)
-def delete_single_inventory_item(item_id: int, session: Annotated[Session, Depends(get_session)]):
-    """ Delete a single inventory item by ID"""
-    try:
-        return delete_inventory_item_by_id(inventory_item_id=item_id, session=session)
-    except HTTPException as e:
-        raise e
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+async def delete_single_inventory_item(item_id: int, session: Annotated[Session, Depends(get_session)], producer: Annotated[AIOKafkaProducer, Depends(get_kafka_producer)]):
+      """ Delete a single inventory item by ID"""
+      item_event = {
+          "action": "delete",
+          "item_id": item_id
+      }
+      item_event_json = json.dumps(item_event).encode("utf-8")
+      await producer.send_and_wait("inventory-add-stock-response", item_event_json)
+      return {"status":"deleted"}
 
 
-# @app.patch("/manage-inventory/{item_id}", response_model=InventoryItem)
-# def update_single_inventory_item(item_id: int, item: InventoryItemUpdate, session: Annotated[Session, Depends(get_session)]):
-#     """ Update a single inventory item by ID"""
-#     try:
-#         return update_inventory_item_by_id(item_id=item_id, to_update_item_data=item, session=session)
-#     except HTTPException as e:
-#         raise e
-#     except Exception as e:
-#         raise HTTPException(status_code=500, detail=str(e))
+@app.patch("/manage-inventory/{item_id}")
+async def update_single_inventoryitem(item_id: int, 
+                                item: InventoryItemUpdate, 
+                                session: Annotated[Session, Depends(get_session)],
+                                producer: Annotated[AIOKafkaProducer, Depends(get_kafka_producer)]):
+        item_dict = {field: getattr(item, field) for field in item.dict()}
+        item_event = {
+            "action": "update",
+            "item_id": item_id,
+            "item": item_dict
+        }
+        item_event_json = json.dumps(item_event).encode("utf-8")
+        await producer.send_and_wait("inventory-add-stock-response", item_event_json)
+
+        return item

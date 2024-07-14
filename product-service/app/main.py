@@ -28,14 +28,13 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
     create_db_and_tables()
 
-    task = asyncio.create_task(consume_messages(
+    task1 = asyncio.create_task(consume_messages(
         settings.KAFKA_PRODUCT_TOPIC, 'broker:19092'))
-    task = asyncio.create_task(consume_inventory_messages(
+    task2 = asyncio.create_task(consume_inventory_messages(
         "AddStock",
         'broker:19092'
     ))
 
-    create_db_and_tables()
     yield
 
 
@@ -56,8 +55,12 @@ async def create_new_product(product: Product, session: Annotated[Session, Depen
     """ Create a new product and send it to Kafka"""
 
     product_dict = {field: getattr(product, field) for field in product.dict()}
-    product_json = json.dumps(product_dict).encode("utf-8")
-    print("product_JSON:", product_json)
+    product_event = {
+        "action": "create",
+        "product": product_dict
+    }
+    product_json = json.dumps(product_event).encode("utf-8")
+    print("product_JSON:", product_event)
     # Produce message
     await producer.send_and_wait(settings.KAFKA_PRODUCT_TOPIC, product_json)
     # new_product = add_new_product(product, session)
@@ -74,34 +77,43 @@ def call_all_products(session: Annotated[Session, Depends(get_session)]):
 def get_single_product(product_id: int, session: Annotated[Session, Depends(get_session)]):
     """ Get a single product by ID"""
     try:
-        return get_product_by_id(product_id=product_id, session=session)
+        return get_product_by_id(product_id=product_id,session=session)
     except HTTPException as e:
         raise e
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+    
 
 
 @app.delete("/manage-products/{product_id}", response_model=dict)
-def delete_single_product(product_id: int, session: Annotated[Session, Depends(get_session)]):
-    """ Delete a single product by ID"""
-    try:
-        return delete_product_by_id(product_id=product_id, session=session)
-    except HTTPException as e:
-        raise e
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+async def delete_single_product(product_id: int, 
+                          session: Annotated[Session, Depends(get_session)],
+                          producer: Annotated[AIOKafkaProducer, Depends(get_kafka_producer)]):
+      """ Delete a single product by ID"""
+      product_event = {
+          "action": "delete",
+          "product_id": product_id
+      }
+      product_event_json = json.dumps(product_event).encode("utf-8")
+      await producer.send_and_wait(settings.KAFKA_PRODUCT_TOPIC, product_event_json)
+
+      return {"status":"deleted"}
 
 
-@app.patch("/manage-products/{product_id}", response_model=Product)
-def update_single_product(product_id: int, product: ProductUpdate, session: Annotated[Session, Depends(get_session)]):
-    """ Update a single product by ID"""
-    try:
-        return update_product_by_id(product_id=product_id, to_update_product_data=product, session=session)
-    except HTTPException as e:
-        raise e
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+@app.patch("/manage-products/{product_id}")
+async def update_single_product(product_id: int, 
+                            product: ProductUpdate, 
+                            producer: Annotated[AIOKafkaProducer, Depends(get_kafka_producer)]):
+        product_dict = {field: getattr(product, field) for field in product.dict()}
+        product_event = {
+            "action": "update",
+            "product_id": product_id,
+            "product": product_dict
+        }
+        product_event_json = json.dumps(product_event).encode("utf-8")
+        await producer.send_and_wait(settings.KAFKA_PRODUCT_TOPIC, product_event_json)
 
+        return product
 # @app.get("/hello-ai")
 # def get_ai_response(prompt:str):
 #     return chat_completion(prompt)

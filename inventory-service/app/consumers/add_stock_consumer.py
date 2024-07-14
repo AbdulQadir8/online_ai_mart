@@ -1,42 +1,63 @@
+import logging
 from aiokafka import AIOKafkaConsumer
 import json
-
 from app.deps import get_session
-from app.crud.inventory_crud import add_new_inventory_item
-from app.models.inventory_model import InventoryItem 
+from app.crud.inventory_crud import add_new_inventory_item, delete_inventory_item_by_id, update_item_by_id
+from app.models.inventory_model import InventoryItem, InventoryItemUpdate
+
+logging.basicConfig(level=logging.DEBUG)
+
 async def consume_messages(topic, bootstrap_servers):
-    # Create a consumer instance.
     consumer = AIOKafkaConsumer(
         topic,
         bootstrap_servers=bootstrap_servers,
         group_id="add-stock-consumer-group",
-        # auto_offset_reset="earliest",
+        auto_offset_reset="earliest",
     )
 
-    # Start the consumer.
-    await consumer.start()
     try:
-        # Continously  listen for messages.
+        await consumer.start()
+        logging.info("Consumer started and subscribed to topic.")
+        
         async for message in consumer:
-            print("RAW ADD STOCK CONSUMER MESSAGE")
-            print(f"Received message on topic {message.topic}")
+            logging.debug(f"Received message: {message}")
+            event = json.loads(message.value.decode())
+            action = event.get("action")
+            item_data = event.get("item")
+            item_id = event.get("item_id")
 
-            inventory_data = json.loads(message.value.decode())
-            print("TYPE", (type(inventory_data)))
-            print(f"Inventory Data {inventory_data}")
+            logging.debug(f"Action: {action}, Item Data: {item_data}, Item ID: {item_id}")
 
-            with next(get_session()) as session:
-                print("SAVING DATA TO DATABASE")
-                # inventory_item_data: InventoryItem 
-                db_insert_product = add_new_inventory_item(
-                    inventory_item_data=InventoryItem(**inventory_data),
-                    session=session
-                )
-
-                print("DB_INSERT_STOCK", db_insert_product)
+            try:
+                with next(get_session()) as session:
+                    if action == "create" and item_data:
+                        db_insert_product =  add_new_inventory_item(
+                            inventory_item_data=InventoryItem(**item_data),
+                            session=session
+                        )
+                    elif action == "delete" and item_id:
+                        delete_inventory_item_by_id(
+                            inventory_item_id=item_id,
+                            session=session
+                        )
+                    elif action == "update" and item_id and item_data:
+                        update_item_by_id(
+                            item_id=item_id,
+                            to_update_item_data=InventoryItemUpdate(**item_data),
+                            session=session
+                        )
+            except Exception as e:
+                print(f"Error processing message: {e}")
+                # Event EMIT In NEW TOPIC
 
             # Here you can add code to process each message.
-            # Exampl: phrase the message , store it in a database, etc.
+            # Example: parse the message, store it in a database, etc
+
+    except Exception as e:
+        logging.error(f"Error consuming messages: {e}")
     finally:
-        # Ensure to close the consumer when done.
         await consumer.stop()
+        logging.info("Consumer stopped.")
+
+# Run the consumer
+# You can call consume_messages(topic, bootstrap_servers) within your async event loop

@@ -1,6 +1,6 @@
 from fastapi import HTTPException
 from sqlmodel import Session, select
-from app.models.inventory_model import InventoryItem
+from app.models.inventory_model import InventoryItem, InventoryItemUpdate
 
 
 
@@ -39,15 +39,22 @@ def delete_inventory_item_by_id(inventory_item_id: int, session: Session):
     return {"message": "Inventory Item Deleted Successfully"}
 
 
-# # Update Product by ID
-# def update_product_by_id(product_id: int, to_update_product_data:ProductUpdate, session: Session):
-#     # Step 1: Get the Product by ID
-#     product = session.exec(select(Product).where(Product.id == product_id)).one_or_none()
-#     if product is None:
-#         raise HTTPException(status_code=404, detail="Product not found")
-#     # Step 2: Update the Product
-#     hero_data = to_update_product_data.model_dump(exclude_unset=True)
-#     product.sqlmodel_update(hero_data)
-#     session.add(product)
-#     session.commit()
-#     return product    
+# Update item by ID
+def update_item_by_id(item_id: int, to_update_item_data:InventoryItemUpdate, session: Session):
+    # Step 1: Get the Product by ID
+    inventory_item = session.get(InventoryItem,item_id)
+    if inventory_item is None:
+        raise HTTPException(status_code=404, detail="Product not found")
+    # Step 2: Update the Product
+    dict_data = to_update_item_data.model_dump(exclude_unset=True)
+    update_data = {k: v for k, v in dict_data.items() if v is not None}
+    print(f"Unique Data: {update_data}")
+
+    # Update inventory_item using the filtered data
+    for key, value in update_data.items():
+        setattr(inventory_item, key, value)
+
+    session.add(inventory_item)
+    session.commit()
+    session.refresh(inventory_item)
+    return inventory_item  

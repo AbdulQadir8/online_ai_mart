@@ -10,5 +10,8 @@ class InventoryItem(SQLModel, table=True):
     status: str
 
 
-# class InventoryItemUpdate(SQLModel):
-#     pass
+class InventoryItemUpdate(SQLModel):
+    product_id: int | None = None
+    variant_id: int | None = None
+    quantity: int | None = None
+    status: str | None = None

@@ -25,6 +25,13 @@ async def consume_inventory_messages(topic, bootstrap_servers):
 
             # 1. Extract Poduct Id
             inventory_data = json.loads(message.value.decode())
+            inventory_event = {
+                "action":"create",
+                "item":inventory_data
+            }
+            inventory_json = json.dumps(inventory_event).encode("utf-8")
+            print("item_JSON:", inventory_json)
+
             product_id = inventory_data["product_id"]
             print("PRODUCT ID", product_id)
 
@@ -48,7 +55,7 @@ async def consume_inventory_messages(topic, bootstrap_servers):
                     try:
                         await producer.send_and_wait(
                             "inventory-add-stock-response",
-                            message.value
+                            inventory_json
                         )
                     finally:
                         await producer.stop()

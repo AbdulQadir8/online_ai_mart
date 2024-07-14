@@ -38,14 +38,24 @@ def delete_product_by_id(product_id: int, session: Session):
 # Update Product by ID
 def update_product_by_id(product_id: int, to_update_product_data:ProductUpdate, session: Session):
     # Step 1: Get the Product by ID
-    product = session.exec(select(Product).where(Product.id)).one_or_none()
+    product = session.exec(select(Product).where(Product.id == product_id)).one_or_none()
     if product is None:
         raise HTTPException(status_code=404, detail="Product not found")
     #Step 2: Update the Product
-    hero_data = to_update_product_data.model_dump(exclude_unset=True)
-    product.sqlmodel_update(hero_data)
+    dict_data = to_update_product_data.model_dump(exclude_unset=True)
+    update_data = {k: v for k, v in dict_data.items() if v is not None}
+    print(f"Unique Data: {update_data}")
+        
+    # Update product using the filtered data
+    for key, value in update_data.items():
+        setattr(product, key, value)
+        
     session.add(product)
     session.commit()
+    session.refresh(product)  # Refresh to get updated data from DB
+    print("Updated product:", product)  # Debugging statement
+
+
     return product
 
 # Validate Product by ID
