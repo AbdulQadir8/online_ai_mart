@@ -1,67 +1,63 @@
-from aiokafka import AIOKafkaProducer, AIOKafkaConsumer
+import logging
+from aiokafka import AIOKafkaConsumer
 import json
-from app.models.product_model import Product, ProductUpdate
-from app.crud.product_crud import validate_product_by_id
-from app.deps import get_session, get_kafka_producer
-# from app.hello_ai import chat_completion
+from app.deps import get_session
+from app.crud.inventory_crud import add_new_inventory_item, delete_inventory_item_by_id, update_item_by_id
+from app.models.inventory_model import InventoryItem, InventoryItemUpdate
 
-async def consume_inventory_messages(topic, bootstrap_servers):
-    # Create a consumer instance.
+logging.basicConfig(level=logging.DEBUG)
+
+async def consume_messages(topic, bootstrap_servers):
     consumer = AIOKafkaConsumer(
         topic,
         bootstrap_servers=bootstrap_servers,
         group_id="inventory-add-group",
-        # auto_offset_reset="earliest",
+        auto_offset_reset="earliest",
     )
 
-    # Start the consumer.
-    await consumer.start()
     try:
-        # Continuously listen for messages.
+        await consumer.start()
+        logging.info("Consumer started and subscribed to topic.")
+        
         async for message in consumer:
-            print("\n\n RAW INVENTORY MESSAGE\n\n ")
-            print(f"Received message on topic {message.topic}")
-            print(f"Message Value {message.value}")
+            logging.debug(f"Received message: {message}")
+            event = json.loads(message.value.decode())
+            action = event.get("action")
+            item_data = event.get("item")
+            item_id = event.get("item_id")
 
-            # 1. Extract Poduct Id
-            inventory_data = json.loads(message.value.decode())
-            inventory_event = {
-                "action":"create",
-                "item":inventory_data
-            }
-            inventory_json = json.dumps(inventory_event).encode("utf-8")
-            print("item_JSON:", inventory_json)
+            logging.debug(f"Action: {action}, Item Data: {item_data}, Item ID: {item_id}")
 
-            product_id = inventory_data["product_id"]
-            print("PRODUCT ID", product_id)
-
-            # 2. Check if Product Id is Valid
-            with next(get_session()) as session:
-                product = validate_product_by_id(
-                    product_id=product_id, session=session)
-                print("PRODUCT VALIDATION CHECK", product)
-                # 3. If Valid
-                if product is None:
-                    pass
-                    # email_body = chat_completion(f"Admin has Sent InCorrect Product. Write Email to Admin {product_id}")
-                    
-                if product is not None:
-                        # - Write New Topic
-                    print("PRODUCT VALIDATION CHECK NOT NONE")
-                    
-                    producer = AIOKafkaProducer(
-                        bootstrap_servers='broker:19092')
-                    await producer.start()
-                    try:
-                        await producer.send_and_wait(
-                            "inventory-add-stock-response",
-                            inventory_json
+            try:
+                with next(get_session()) as session:
+                    if action == "create" and item_data:
+                        db_insert_product =  add_new_inventory_item(
+                            inventory_item_data=InventoryItem(**item_data),
+                            session=session
                         )
-                    finally:
-                        await producer.stop()
+                    elif action == "delete" and item_id:
+                        delete_inventory_item_by_id(
+                            inventory_item_id=item_id,
+                            session=session
+                        )
+                    elif action == "update" and item_id and item_data:
+                        update_item_by_id(
+                            item_id=item_id,
+                            to_update_item_data=InventoryItemUpdate(**item_data),
+                            session=session
+                        )
+            except Exception as e:
+                print(f"Error processing message: {e}")
+                # Event EMIT In NEW TOPIC
 
             # Here you can add code to process each message.
-            # Example: parse the message, store it in a database, etc.
+            # Example: parse the message, store it in a database, etc
+
+    except Exception as e:
+        logging.error(f"Error consuming messages: {e}")
     finally:
-        # Ensure to close the consumer when done.
         await consumer.stop()
+        logging.info("Consumer stopped.")
+
+# Run the consumer
+# You can call consume_messages(topic, bootstrap_servers) within your async event loop

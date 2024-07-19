@@ -58,3 +58,22 @@ def update_item_by_id(item_id: int, to_update_item_data:InventoryItemUpdate, ses
     session.commit()
     session.refresh(inventory_item)
     return inventory_item  
+
+#Get quantity value 
+def get_quantity_value(product_id: int, session: Session):
+    # Step 1: Get the Inventory Item by product_id
+    inventory_item = session.exec(select(InventoryItem).where(InventoryItem.product_id == product_id)).one_or_none()
+    if inventory_item is None:
+        raise HTTPException(status_code=404, detail="Inventory Item not found")
+    real_quantity = inventory_item["quantity"]
+    return real_quantity
+
+# Decrease Inventory stock quantity
+def decrease_quantity_value(product_id: int,real_quantity: int,quantity_value: int, session: Session):
+    statement = select(InventoryItem).where(InventoryItem.product_id == product_id)
+    inventory_item = session.exec(statement)
+    updated_quantity = real_quantity - quantity_value
+    inventory_item.quantity = updated_quantity
+
+    session.add(inventory_item)
+    session.commit()

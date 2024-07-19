@@ -3,18 +3,16 @@ from contextlib import asynccontextmanager
 from typing import Union, Optional, Annotated
 from app import settings
 from sqlmodel import Field, Session, SQLModel, create_engine, select, Sequence
+
 from fastapi import FastAPI, Depends
 from typing import AsyncGenerator
-from aiokafka import AIOKafkaProducer, AIOKafkaConsumer
-from app import settings
-from app.models.order_model import Order, OrderItem
+from aiokafka import AIOKafkaProducer
+from app.db_engine import engine
 import asyncio
 import json
-from app.db_engine import engine
 from app.deps import get_kafka_producer, get_session
+from app.models.order_model import Order, OrderItem
 from app.consumers.order_consumer import consume_messages
-
-
 
 
 def create_db_and_tables()->None:
@@ -31,44 +29,53 @@ def create_db_and_tables()->None:
 async def lifespan(app: FastAPI)-> AsyncGenerator[None, None]:
     print("Creating tables..")
     # loop.run_until_complete(consume_messages('todos', 'broker:19092'))
-    task = asyncio.create_task(consume_messages(settings.KAFKA_ORDER_TOPIC, 'broker:19092'))
+    task = asyncio.create_task(consume_messages('order_events', 'broker:19092'))
     create_db_and_tables()
     yield
 
 
-app = FastAPI(lifespan=lifespan, title="Hello World API with DB", 
-    version="0.0.1",
-    servers=[
-        {
-            "url": "http://127.0.0.1:8000", # ADD NGROK URL Here Before Creating GPT Action
-            "description": "Development Server"
-        }
-        ])
-
-def get_session():
-    with Session(engine) as session:
-        yield session
+app = FastAPI(
+     lifespan=lifespan, 
+     title="Hello World API with DB", 
+     version="0.0.1")
 
 
 @app.get("/")
 def read_root():
-    return {"Order": "Service"}
+    return {"Hello": "Order Service"}
+
+# Kafka Producer as a dependency
+async def get_kafka_producer():
+    producer = AIOKafkaProducer(bootstrap_servers='broker:19092')
+    await producer.start()
+    try:
+        yield producer
+    finally:
+        await producer.stop()
+
+@app.post("/order/", response_model=Order)
+async def create_todo(order: Order, orderitem: OrderItem, session: Annotated[Session, Depends(get_session)], producer: Annotated[AIOKafkaProducer, Depends(get_kafka_producer)])->Order:
+        new_order = order
+        item = orderitem
+        new_order.items.append(item)
+        order_dict = {field: getattr(new_order, field) for field in new_order.dict()}
+        item_dict = {field: getattr(item, field) for field in item.dict()}
 
 
-@app.post("/todos/", response_model=Order)
-async def create_order(order: Order, producer: Annotated[AIOKafkaProducer, Depends(get_kafka_producer)])->Order:
-        order_dict = {field: getattr(order, field) for field in order.dict()}
-        order_json = json.dumps(order_dict).encode("utf-8")
-        print("todoJSON:", order_json)
+        order_item_dict = {"order":order_dict,
+                           "orderitem":item_dict}
+
+        order_json = json.dumps(order_item_dict).encode("utf-8")
+        print("orderJSON:", order_json)
         # Produce message
-        await producer.send_and_wait(settings.KAFKA_ORDER_TOPIC, order_json)
-        # session.add(todo)
+        await producer.send_and_wait("order_events", order_json)
+        # session.add(new_order)
         # session.commit()
-        # session.refresh(todo)
-        return 
+        # session.refresh(new_order)
+        return order_json
 
 
 @app.get("/orders/", response_model=list[Order])
-def read_orders(session: Annotated[Session, Depends(get_session)]):
-        orders = session.exec(select(Order)).all()
-        return orders
+def read_todos(session: Annotated[Session, Depends(get_session)]):
+        todos = session.exec(select(Order)).all()
+        return todos
