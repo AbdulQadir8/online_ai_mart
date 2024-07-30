@@ -5,7 +5,7 @@ from app.deps import get_session
 from app.crud.inventory_crud import add_new_inventory_item, delete_inventory_item_by_id, update_item_by_id
 from app.models.inventory_model import InventoryItem, InventoryItemUpdate
 
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.INFO)
 
 async def consume_messages(topic, bootstrap_servers):
     consumer = AIOKafkaConsumer(
@@ -15,18 +15,17 @@ async def consume_messages(topic, bootstrap_servers):
         auto_offset_reset="earliest",
     )
 
-    try:
-        await consumer.start()
-        logging.info("Consumer started and subscribed to topic.")
-        
+    await consumer.start()
+    logging.info("Consumer started and subscribed to topic.")
+    try:        
         async for message in consumer:
-            logging.debug(f"Received message: {message}")
+            logging.info(f"Received message: {message}")
             event = json.loads(message.value.decode())
             action = event.get("action")
             item_data = event.get("item")
             item_id = event.get("item_id")
 
-            logging.debug(f"Action: {action}, Item Data: {item_data}, Item ID: {item_id}")
+            logging.info(f"Action: {action}, Item Data: {item_data}, Item ID: {item_id}")
 
             try:
                 with next(get_session()) as session:

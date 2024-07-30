@@ -1,13 +1,12 @@
 import logging
-from aiokafka import AIOKafkaConsumer
+from aiokafka import AIOKafkaConsumer, AIOKafkaProducer
 import json
 from app.deps import get_session
-from app.crud.inventory_crud import add_new_inventory_item, delete_inventory_item_by_id, update_item_by_id
-from app.models.inventory_model import InventoryItem, InventoryItemUpdate
+from app.crud.product_crud import validate_product_by_id
 
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.INFO)
 
-async def consume_messages(topic, bootstrap_servers):
+async def consume_inventory_messages(topic, bootstrap_servers):
     consumer = AIOKafkaConsumer(
         topic,
         bootstrap_servers=bootstrap_servers,
@@ -15,49 +14,49 @@ async def consume_messages(topic, bootstrap_servers):
         auto_offset_reset="earliest",
     )
 
-    try:
-        await consumer.start()
-        logging.info("Consumer started and subscribed to topic.")
-        
-        async for message in consumer:
-            logging.debug(f"Received message: {message}")
-            event = json.loads(message.value.decode())
-            action = event.get("action")
-            item_data = event.get("item")
-            item_id = event.get("item_id")
+    producer = AIOKafkaProducer(bootstrap_servers=bootstrap_servers)
+    await producer.start()
+    await consumer.start()
 
-            logging.debug(f"Action: {action}, Item Data: {item_data}, Item ID: {item_id}")
+    try:
+        async for message in consumer:
+            logging.debug("\n\n RAW INVENTORY MESSAGE\n\n ")
+            logging.debug(f"Received message on topic {message.topic}")
+            logging.debug(f"Message Value {message.value}")
+
+            # 1. Extract Product Id
+            inventory_data = json.loads(message.value.decode())
+            item = inventory_data["item"]
+            product_id = item["product_id"]
+            logging.debug("PRODUCT ID: %s", product_id)
 
             try:
                 with next(get_session()) as session:
-                    if action == "create" and item_data:
-                        db_insert_product =  add_new_inventory_item(
-                            inventory_item_data=InventoryItem(**item_data),
-                            session=session
-                        )
-                    elif action == "delete" and item_id:
-                        delete_inventory_item_by_id(
-                            inventory_item_id=item_id,
-                            session=session
-                        )
-                    elif action == "update" and item_id and item_data:
-                        update_item_by_id(
-                            item_id=item_id,
-                            to_update_item_data=InventoryItemUpdate(**item_data),
-                            session=session
-                        )
-            except Exception as e:
-                print(f"Error processing message: {e}")
-                # Event EMIT In NEW TOPIC
+                    # 2. Check if Product Id is Valid
+                    product = validate_product_by_id(product_id=product_id, session=session)
+                    logging.debug("PRODUCT VALIDATION CHECK: %s", product)
 
-            # Here you can add code to process each message.
-            # Example: parse the message, store it in a database, etc
+                    if product is None:
+                        # Handle invalid product case
+                        logging.warning(f"Invalid product ID: {product_id}")
+                        # Optionally send a message to another topic or take other action
+
+                    if product is not None:
+                        # Write new topic
+                        logging.debug("PRODUCT VALIDATION CHECK NOT NONE")
+
+                        await producer.send_and_wait(
+                            "inventory-add-stock-response",
+                            message.value
+                        )
+
+            except Exception as e:
+                logging.error(f"Error validating product or sending message: {e}")
 
     except Exception as e:
         logging.error(f"Error consuming messages: {e}")
+
     finally:
         await consumer.stop()
+        await producer.stop()
         logging.info("Consumer stopped.")
-
-# Run the consumer
-# You can call consume_messages(topic, bootstrap_servers) within your async event loop

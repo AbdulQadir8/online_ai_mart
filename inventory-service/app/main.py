@@ -28,14 +28,15 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     create_db_and_tables()
 
 
-    task1 = asyncio.create_task(consume_messages(
-        "inventory-add-stock-response", 'broker:19092'))
-    task2 = asyncio.create_task(consume_order_messages(
-         "order_events", "broker:19092"
-    ))
+
+    task1 = asyncio.create_task(consume_messages("inventory-add-stock-response", 'broker:19092'))
+    task2 = asyncio.create_task(consume_order_messages("order_events", "broker:19092"))
+
         
 
     yield
+
+ 
 
 
 app = FastAPI(
@@ -55,7 +56,9 @@ async def create_new_inventory_item(item: InventoryItem, session: Annotated[Sess
     """ Create a new inventory item and send it to Kafka"""
 
     item_dict = {field: getattr(item, field) for field in item.dict()}
-    item_json = json.dumps(item_dict).encode("utf-8")
+    item_event = {"action":"create",
+                  "item":item_dict}
+    item_json = json.dumps(item_event).encode("utf-8")
     print("item_JSON:", item_json)
     # Produce message
     await producer.send_and_wait("AddStock", item_json)

@@ -8,7 +8,7 @@ def add_new_product(product_data: Product, session: Session):
     session.add(product_data)
     session.commit()
     session.refresh(product_data)
-    return product_data
+    return {"message":"Product Added successfully"}
 
 
 # Get All Products from the Database

@@ -65,15 +65,25 @@ def get_quantity_value(product_id: int, session: Session):
     inventory_item = session.exec(select(InventoryItem).where(InventoryItem.product_id == product_id)).one_or_none()
     if inventory_item is None:
         raise HTTPException(status_code=404, detail="Inventory Item not found")
-    real_quantity = inventory_item["quantity"]
+    real_quantity = inventory_item.quantity
     return real_quantity
 
 # Decrease Inventory stock quantity
-def decrease_quantity_value(product_id: int,real_quantity: int,quantity_value: int, session: Session):
+def decrease_quantity_value(product_id: int, quantity_value: int, session: Session):
+    # Fetch the inventory item with the specified product_id
     statement = select(InventoryItem).where(InventoryItem.product_id == product_id)
-    inventory_item = session.exec(statement)
-    updated_quantity = real_quantity - quantity_value
+    result = session.exec(statement)
+    inventory_item = result.one_or_none()  # Get the single result or None if no result
+
+    if inventory_item is None:
+        raise ValueError(f"No inventory item found with product_id {product_id}")
+
+    # Update the quantity
+    updated_quantity = inventory_item.quantity - quantity_value
     inventory_item.quantity = updated_quantity
 
+    # Add the updated item to the session and commit the transaction
     session.add(inventory_item)
     session.commit()
+    session.refresh(inventory_item)
+    return updated_quantity

@@ -7,7 +7,7 @@ async def consume_messages(topic, bootstrap_servers):
     consumer = AIOKafkaConsumer(
         topic,
         bootstrap_servers=bootstrap_servers,
-        group_id="my-group",
+        group_id="order_consumer-group",
         auto_offset_reset='earliest'
     )
 

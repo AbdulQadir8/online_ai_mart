@@ -1,13 +1,14 @@
-from aiokafka import AIOKafkaProducer, AIOKafkaConsumer
+import logging
 import json
+from aiokafka import AIOKafkaProducer, AIOKafkaConsumer
 from app.models.product_model import Product, ProductUpdate
-from app.crud.product_crud import add_new_product, get_all_products, get_product_by_id, delete_product_by_id, update_product_by_id
+from app.crud.product_crud import add_new_product, get_product_by_id, delete_product_by_id, update_product_by_id
 from app.deps import get_session
-from sqlmodel import Session
 
+# Set the logging level to INFO for aiokafka to reduce verbosity
+logging.basicConfig(level=logging.INFO)
 
 async def consume_messages(topic, bootstrap_servers):
-    # Create a consumer instance.
     consumer = AIOKafkaConsumer(
         topic,
         bootstrap_servers=bootstrap_servers,
@@ -15,43 +16,38 @@ async def consume_messages(topic, bootstrap_servers):
         auto_offset_reset="earliest",
     )
 
-    # Start the consumer.
     await consumer.start()
     try:
-        # Continuously listen for messages.
         async for message in consumer:
-            print("RAW")
-            print(f"Received message on topic {message.topic}")
-
-            event = json.loads(message.value.decode())
-            
-            action = event.get("action")
-            product_data = event.get("product")
-            print("TYPE", (type(product_data)))
-            print(f"Product Data {product_data}")
-            product_id = event.get("product_id")
+            logging.info(f"Received message on topic {message.topic}")
 
             try:
+                event = json.loads(message.value.decode())
+                action = event.get("action")
+                product_data = event.get("product")
+                product_id = event.get("product_id")
+
+                logging.info(f"Action: {action}")
+                logging.info(f"Product Data: {product_data}")
+                logging.info(f"Product ID: {product_id}")
+
                 with next(get_session()) as session:
                     if action == "create" and product_data:
                         new_product = Product(**product_data)
                         db_insert_product = add_new_product(new_product, session=session)
-                        print("DB_INSERT_PRODUCT", db_insert_product)
+                        logging.info(f"Product created: {db_insert_product}")
                     elif action == "delete" and product_id:
                         delete_product_by_id(product_id=product_id, session=session)
-                        print({"status": f"Product deleted with Id:{product_id}"})
+                        logging.info(f"Product deleted with ID: {product_id}")
                     elif action == "update" and product_id and product_data:
                         new_product = ProductUpdate(**product_data)
                         updated_product = update_product_by_id(product_id, new_product, session)
-                        print({"status": f"Product updated with ID:{product_id}", "product": updated_product})
-
+                        logging.info(f"Product updated with ID: {product_id}, Product: {updated_product}")
 
             except Exception as e:
-                print(f"Error processing message: {e}")
-                # Event EMIT In NEW TOPIC
+                logging.error(f"Error processing message: {e}")
+                # Optionally handle the error, such as by sending to a different topic
 
-            # Here you can add code to process each message.
-            # Example: parse the message, store it in a database, etc
     finally:
-        # Ensure to close the consumer when done.
         await consumer.stop()
+        logging.info("Consumer stopped.")
