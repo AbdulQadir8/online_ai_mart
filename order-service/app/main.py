@@ -42,7 +42,7 @@ app = FastAPI(
 
 @app.get("/")
 def read_root():
-    return {"Hello": "Order Service"}
+    return {"Hello1": "Order Service"}
 
 @app.post("/order/")
 async def create_order(order: Order, orderitem: OrderItem, session: Annotated[Session, Depends(get_session)], producer: Annotated[AIOKafkaProducer, Depends(get_kafka_producer)]):
