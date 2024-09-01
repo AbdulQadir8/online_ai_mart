@@ -2,8 +2,7 @@
 from contextlib import asynccontextmanager
 from fastapi.security import OAuth2PasswordRequestForm, OAuth2PasswordBearer
 from jose import jwt, JWTError
-from app.deps import login_for_access_token
-import requests
+from app import requests
 from typing import Annotated, AsyncGenerator
 from sqlmodel import Session, SQLModel
 from fastapi import FastAPI, Depends, HTTPException
@@ -15,14 +14,14 @@ from app import settings
 from app.db_engine import engine
 from app.models.product_model import Product, ProductUpdate
 from app.crud.product_crud import add_new_product, get_all_products, get_product_by_id, delete_product_by_id, update_product_by_id
-from app.deps import get_session, get_kafka_producer
+from app.deps import get_session, get_kafka_producer, get_login_for_access_token, get_current_admin_dep
 from app.consumers.product_consumer import consume_messages
 from app.consumers.inventory_consumer import consume_inventory_messages
 # from app.hello_ai import chat_completion
 
-ALGORITHM: str = "HS256"
-SECRET_KEY: str = "Secure Secret Key"
 
+ALGORITHM: str = "HS256"
+SECRET_KEY: str = "The new Secret key"
 
 
 def create_db_and_tables() -> None:
@@ -60,23 +59,24 @@ def read_root():
     return {"Hello": "Product Service"}
 
 @app.post("/login-endpoint", tags=["Wrapper Auth"])
-def login_access_token(form_data:  Annotated[OAuth2PasswordRequestForm, Depends(OAuth2PasswordRequestForm)]):
-    auth_tokens = login_for_access_token(form_data)
+def get_login_for_access_token(form_data: Annotated[OAuth2PasswordRequestForm, Depends()]):
+    auth_token = requests.login_for_access_token(form_data)
     # Make a request to get user data and check if user is admin
-    # user = requests.get_current_user(auth_tokens.get("access_token"))
-    return auth_tokens
-
+    user = requests.get_current_user(auth_token.get("access_token"))
+    if user.get("is_superuser") == False:
+        raise HTTPException(status_code=403, detail="User doesn't have enough privileges")
+    return auth_token
 @app.post("/manage-products/")
 async def create_new_product(
-    token: Annotated[str | None, Depends(oauth2_scheme)],
+    token: Annotated[str | None, Depends(get_current_admin_dep)],
     product: Product, 
     producer: Annotated[AIOKafkaProducer, Depends(get_kafka_producer)]
 ):
     """ Create a new product and send it to Kafka"""
-    try:
-        decoded_token_data = jwt.decode(token, SECRET_KEY , algorithms=[ALGORITHM])
-    except JWTError as e:
-        return {"error": str(e)}
+    # try:
+    #     decoded_token_data = jwt.decode(token, SECRET_KEY , algorithms=[ALGORITHM])
+    # except JWTError as e:
+    #     return {"errorz": str(e)}
     product_dict = {field: getattr(product, field) for field in product.dict()}
     product_event = {
         "action": "create",
@@ -90,23 +90,23 @@ async def create_new_product(
             
 
 @app.get("/manage-products/all")
-def call_all_products(token: Annotated[str | None , Depends(oauth2_scheme)],session: Annotated[Session, Depends(get_session)]):
+def call_all_products(token: Annotated[str | None, Depends(get_current_admin_dep)],session: Annotated[Session, Depends(get_session)]):
     """ Get all products from the database"""
-    try:
-       decoded_token_data = jwt.decode(token, SECRET_KEY , algorithms=[ALGORITHM])
-    except JWTError as e:
-        return {"error": str(e)}
+    # try:
+    #    decoded_token_data = jwt.decode(token, SECRET_KEY , algorithms=[ALGORITHM])
+    # except JWTError as e:
+    #     return {"error": str(e)}
 
     return get_all_products(session)
 
 @app.get("/manage-products/{product_id}")
 def get_single_product(product_id: int, session: Annotated[Session, Depends(get_session)],
-                       token: Annotated[str | None, Depends(oauth2_scheme)]):
+                       token: Annotated[str | None, Depends(get_current_admin_dep)]):
     """ Get a single product by ID"""
-    try:
-       decoded_token_data = jwt.decode(token, SECRET_KEY , algorithms=[ALGORITHM])
-    except JWTError as e:
-        return {"error": str(e)}
+    # try:
+    #    decoded_token_data = jwt.decode(token, SECRET_KEY , algorithms=[ALGORITHM])
+    # except JWTError as e:
+    #     return {"error": str(e)}
     try:
         return get_product_by_id(product_id=product_id, session=session)
     except Exception as e:
@@ -117,13 +117,13 @@ async def delete_single_product(
     product_id: int, 
     session: Annotated[Session, Depends(get_session)],
     producer: Annotated[AIOKafkaProducer, Depends(get_kafka_producer)],
-    token: Annotated[str | None, Depends(oauth2_scheme)]
+    token: Annotated[str | None, Depends(get_current_admin_dep)]
 ):
     """ Delete a single product by ID"""
-    try:
-       decoded_token_data = jwt.decode(token, SECRET_KEY , algorithms=[ALGORITHM])
-    except JWTError as e:
-        return {"error": str(e)}
+    # try:
+    #    decoded_token_data = jwt.decode(token, SECRET_KEY , algorithms=[ALGORITHM])
+    # except JWTError as e:
+    #     return {"error": str(e)}
     product_event = {
         "action": "delete",
         "product_id": product_id
@@ -140,12 +140,12 @@ async def update_single_product(
     product: ProductUpdate, 
     session: Annotated[Session, Depends(get_session)],
     producer: Annotated[AIOKafkaProducer, Depends(get_kafka_producer)],
-    token: Annotated[str | None, Depends(oauth2_scheme)]
+    token: Annotated[str | None, Depends(get_current_admin_dep)]
 ):
-    try:
-       decoded_token_data = jwt.decode(token, SECRET_KEY , algorithms=[ALGORITHM])
-    except JWTError as e:
-        return {"error": str(e)}
+    # try:
+    #    decoded_token_data = jwt.decode(token, SECRET_KEY , algorithms=[ALGORITHM])
+    # except JWTError as e:
+    #     return {"error": str(e)}
     product_dict = {field: getattr(product, field) for field in product.dict()}
     product_event = {
         "action": "update",

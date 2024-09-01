@@ -148,7 +148,7 @@ def read_user_me(current_user: CurrentUser)-> Any:
 
 
 
-@app.patch("/me", response_model=UserPublic)
+@app.patch("/update/me", response_model=UserPublic)
 def update_user_me(session: SessionDep, user_in: UserUpdateMe, current_user: CurrentUser)-> Any:
     """
     Update own user
