@@ -4,7 +4,7 @@ from typing import Annotated
 from sqlmodel import Session, SQLModel
 from fastapi import FastAPI, Depends, HTTPException
 from typing import AsyncGenerator
-from aiokafka import AIOKafkaProducer, AIOKafkaConsumer
+from aiokafka import AIOKafkaProducer
 import asyncio
 import json
 
@@ -16,6 +16,9 @@ from app.deps import get_session, get_kafka_producer
 from app.consumers.add_stock_consumer import consume_messages
 from app.consumers.ordervalidation_consumer import consume_order_messages
 
+from fastapi.security import OAuth2PasswordRequestForm
+from app import requests
+from app.deps import GetCurrentAdminDep
 
 def create_db_and_tables() -> None:
     SQLModel.metadata.create_all(engine)
@@ -51,7 +54,17 @@ def read_root():
     return {"Hello": "Product Service"}
 
 
-@app.post("/manage-inventory/", response_model=InventoryItem)
+@app.post("/login-endpoint", tags=["Wrapper Auth"])
+def get_login_for_access_token(form_data: Annotated[OAuth2PasswordRequestForm, Depends()]):
+     auth_token = requests.login_for_access_token(form_data)
+     # Make a request to get user data and check if user is admin
+     user = requests.get_current_user(auth_token.get("access_token"))
+     if user.get("is_superuser") == False:
+          raise HTTPException(status_code=403, detail="User doesn't have enough privileges")
+     return auth_token
+
+
+@app.post("/manage-inventory/", dependencies=[GetCurrentAdminDep],response_model=InventoryItem)
 async def create_new_inventory_item(item: InventoryItem, session: Annotated[Session, Depends(get_session)], producer: Annotated[AIOKafkaProducer, Depends(get_kafka_producer)]):
     """ Create a new inventory item and send it to Kafka"""
 
@@ -66,13 +79,13 @@ async def create_new_inventory_item(item: InventoryItem, session: Annotated[Sess
     return item
 
 
-@app.get("/manage-inventory/all", response_model=list[InventoryItem])
+@app.get("/manage-inventory/all", response_model=list[InventoryItem], dependencies=[GetCurrentAdminDep])
 def all_inventory_items(session: Annotated[Session, Depends(get_session)]):
     """ Get all inventory items from the database"""
     return get_all_inventory_items(session)
 
 
-@app.get("/manage-inventory/{item_id}", response_model=InventoryItem)
+@app.get("/manage-inventory/{item_id}", response_model=InventoryItem, dependencies=[GetCurrentAdminDep])
 def single_inventory_item(item_id: int, session: Annotated[Session, Depends(get_session)]):
     """ Get a single inventory item by ID"""
     try:
@@ -83,7 +96,7 @@ def single_inventory_item(item_id: int, session: Annotated[Session, Depends(get_
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.delete("/manage-inventory/{item_id}", response_model=dict)
+@app.delete("/manage-inventory/{item_id}", response_model=dict, dependencies=[GetCurrentAdminDep])
 async def delete_single_inventory_item(item_id: int, session: Annotated[Session, Depends(get_session)], producer: Annotated[AIOKafkaProducer, Depends(get_kafka_producer)]):
       """ Delete a single inventory item by ID"""
       item_event = {
@@ -95,10 +108,9 @@ async def delete_single_inventory_item(item_id: int, session: Annotated[Session,
       return {"status":"deleted"}
 
 
-@app.patch("/manage-inventory/{item_id}")
+@app.patch("/manage-inventory/{item_id}",dependencies=[GetCurrentAdminDep])
 async def update_single_inventoryitem(item_id: int, 
                                 item: InventoryItemUpdate, 
-                                session: Annotated[Session, Depends(get_session)],
                                 producer: Annotated[AIOKafkaProducer, Depends(get_kafka_producer)]):
         item_dict = {field: getattr(item, field) for field in item.dict()}
         item_event = {

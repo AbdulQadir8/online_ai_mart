@@ -1,7 +1,8 @@
 from fastapi import HTTPException
 from sqlmodel import Session, select
 from app.models.inventory_model import InventoryItem, InventoryItemUpdate
-
+import logging
+logging.basicConfig(level=logging.INFO)
 
 
 # Add a New Inventory Item to the Database
@@ -42,13 +43,14 @@ def delete_inventory_item_by_id(inventory_item_id: int, session: Session):
 # Update item by ID
 def update_item_by_id(item_id: int, to_update_item_data:InventoryItemUpdate, session: Session):
     # Step 1: Get the Product by ID
+    logging.info("Crud Started...")
     inventory_item = session.get(InventoryItem,item_id)
     if inventory_item is None:
         raise HTTPException(status_code=404, detail="Product not found")
     # Step 2: Update the Product
     dict_data = to_update_item_data.model_dump(exclude_unset=True)
     update_data = {k: v for k, v in dict_data.items() if v is not None}
-    print(f"Unique Data: {update_data}")
+    logging.info(f"Unique Data: {update_data}")
 
     # Update inventory_item using the filtered data
     for key, value in update_data.items():
@@ -57,7 +59,7 @@ def update_item_by_id(item_id: int, to_update_item_data:InventoryItemUpdate, ses
     session.add(inventory_item)
     session.commit()
     session.refresh(inventory_item)
-    return inventory_item  
+    return {"message":"Product Updated Successfully"} 
 
 #Get quantity value 
 def get_quantity_value(product_id: int, session: Session):
