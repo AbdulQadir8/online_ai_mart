@@ -1,6 +1,8 @@
 from aiokafka import AIOKafkaProducer
+from fastapi import Depends
 from sqlmodel import Session
 from app.db_engine import engine
+from typing import Annotated
 
 
 # Kafka Producer as a dependency
@@ -15,3 +17,6 @@ async def get_kafka_producer():
 def get_session():
     with Session(engine) as session:
         yield session
+
+
+SessionDep = Annotated[Session, Depends(get_session)]
