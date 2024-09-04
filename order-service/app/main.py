@@ -11,7 +11,7 @@ from app.db_engine import engine
 import asyncio
 import json
 from app.deps import get_kafka_producer, get_session
-from app.models.order_model import Order, OrderItem
+from app.models.order_model import CreateOrder, Order, OrderItem, UpdateOrder
 # from app.consumers.order_consumer import consume_messages
 from app.crud.order_crud import get_single_order, add_new_order
 
@@ -46,7 +46,7 @@ def read_root():
     return {"Hellow": "Order Service"}
 
 @app.post("/order/")
-async def create_order(order: Order, orderitem: OrderItem, session: Annotated[Session, Depends(get_session)], producer: Annotated[AIOKafkaProducer, Depends(get_kafka_producer)]):
+async def create_order(order_data: CreateOrder, session: Annotated[Session, Depends(get_session)], producer: Annotated[AIOKafkaProducer, Depends(get_kafka_producer)]):
         # order_dict = {field: getattr(order, field) for field in order.dict()}
         # item_dict = {field: getattr(orderitem, field) for field in orderitem.dict()}
 
@@ -62,14 +62,27 @@ async def create_order(order: Order, orderitem: OrderItem, session: Annotated[Se
         # # session.commit()
         # # session.refresh(new_order)
         # return order_item_dict
-        new_order = order
-        new_orderitem = orderitem
-        session.add(new_order)
-        session.add(new_orderitem)
+
+        # Convert the CreateOrderItem Pydantic model to the SQLAlchemy model
+        db_order = Order(
+            user_id=order_data.user_id,
+            status=order_data.status,
+            total_amount=order_data.total_amount
+        )
+
+        # Convert each CreateOrderItem to an OrderItem and add to db_order.items
+        for item_data in order_data.items:
+            db_item = OrderItem(
+                product_id=item_data.product_id,
+                quantity=item_data.quantity,
+                price=item_data.price
+            )
+            db_order.items.append(db_item)
+        
+        session.add(db_order)
         session.commit()
-        session.refresh(new_order)
-        session.refresh(new_orderitem)
-        return order
+        session.refresh(db_order)
+        return order_data
 
 
 @app.get("/orders/", response_model=list[Order])
@@ -100,5 +113,13 @@ def orderitem_by_orderid(order_id:int, session: Annotated[Session, Depends(get_s
     orderitem = result.one()
     return orderitem
 
-# @app.patch("/order_update/{order_id}")
-# def update_order(order_id: int, order: Order1)
+@app.patch("/order_update/{order_id}")
+def update_order(order_id: int, order_in: UpdateOrder, session: Session):
+     order_to_update = session.get(Order, order_id).one_or_none()
+     order_data = order_in.model_dump(exclude_unset=True)
+     order = order_to_update.sqlmodel_update(order_data)
+     session.add(order)
+     session.commit()
+     session.refresh(order)
+     return order
+
