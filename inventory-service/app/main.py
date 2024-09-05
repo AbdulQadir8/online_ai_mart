@@ -75,7 +75,6 @@ async def create_new_inventory_item(item: InventoryItem, session: Annotated[Sess
     print("item_JSON:", item_json)
     # Produce message
     await producer.send_and_wait("AddStock", item_json)
-    # new_item = add_new_inventory_item(item, session)
     return item
 
 

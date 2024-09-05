@@ -10,11 +10,12 @@ from aiokafka import AIOKafkaProducer
 from app.db_engine import engine
 import asyncio
 import json
-from app.deps import get_kafka_producer, get_session
-from app.models.order_model import CreateOrder, Order, OrderItem, UpdateOrder
-# from app.consumers.order_consumer import consume_messages
+from app.deps import get_kafka_producer, get_session, custom_json_serializer
+from app.models.order_model import CreateOrder, Order, OrderItem, UpdateOrder, UpdateItem, OrderItem
+from app.consumers.order_consumer import consume_messages
 from app.crud.order_crud import get_single_order, add_new_order
-
+import logging
+logging.basicConfig(level=logging.INFO)
 
 def create_db_and_tables()->None:
     SQLModel.metadata.create_all(engine)
@@ -30,7 +31,7 @@ def create_db_and_tables()->None:
 async def lifespan(app: FastAPI)-> AsyncGenerator[None, None]:
     print("Creating tables..")
     create_db_and_tables()
-    # task = asyncio.create_task(consume_messages('order_events', 'broker:19092'))
+    task = asyncio.create_task(consume_messages('order_events', 'broker:19092'))
     yield
 
 
@@ -38,51 +39,57 @@ async def lifespan(app: FastAPI)-> AsyncGenerator[None, None]:
 app = FastAPI(
      lifespan=lifespan, 
      title="Hello World API with DB", 
-     version="0.0.1")
+     version="0.0.1",
+     servers=[
+        {
+            "url": "http://127.0.0.1:8007", # ADD NGROK URL Here Before Creating GPT Action
+            "description": "Development Server"
+        },{
+            "url": "http://127.0.0.1:8000", # ADD NGROK URL Here Before Creating GPT Action
+            "description": "Development Server"
+        }
+        ])
 
 
 @app.get("/")
 def read_root():
-    return {"Hellow": "Order Service"}
+    return {"Hellowj": "Order Service"}
 
 @app.post("/order/")
 async def create_order(order_data: CreateOrder, session: Annotated[Session, Depends(get_session)], producer: Annotated[AIOKafkaProducer, Depends(get_kafka_producer)]):
-        # order_dict = {field: getattr(order, field) for field in order.dict()}
-        # item_dict = {field: getattr(orderitem, field) for field in orderitem.dict()}
+    """ Create a new inventory item and send it to Kafka"""
+      
+    # Convert order_data to a dictionary and handle datetime fields
+    order_dict = order_data.dict()
+    order_dict["created_at"] = order_data.created_at.isoformat()
+    order_dict["updated_at"] = order_data.updated_at.isoformat()
+    logging.info(f"OrderDict:{order_dict}")
+    order_json = json.dumps(order_dict).encode("utf-8")
+    print(f"Order Json: {order_json}")
+    #Produce Message
+    await producer.send_and_wait("order_events",order_json)
+    return order_data
 
+        # # Convert the CreateOrderItem Pydantic model to the SQLAlchemy model
+        # db_order = Order(
+        #     user_id=order_data.user_id,
+        #     status=order_data.status,
+        #     total_amount=order_data.total_amount
+        # )
 
-        # order_item_dict = {"order":order_dict,
-        #                    "orderitem":item_dict}
-
-        # order_json = json.dumps(order_item_dict).encode("utf-8")
-        # print("orderJSON:", order_json)
-        # # Produce message
-        # await producer.send_and_wait("order_events", order_json)
-        # # session.add(new_order)
-        # # session.commit()
-        # # session.refresh(new_order)
-        # return order_item_dict
-
-        # Convert the CreateOrderItem Pydantic model to the SQLAlchemy model
-        db_order = Order(
-            user_id=order_data.user_id,
-            status=order_data.status,
-            total_amount=order_data.total_amount
-        )
-
-        # Convert each CreateOrderItem to an OrderItem and add to db_order.items
-        for item_data in order_data.items:
-            db_item = OrderItem(
-                product_id=item_data.product_id,
-                quantity=item_data.quantity,
-                price=item_data.price
-            )
-            db_order.items.append(db_item)
+        # # Convert each CreateOrderItem to an OrderItem and add to db_order.items
+        # for item_data in order_data.items:
+        #     db_item = OrderItem(
+        #         product_id=item_data.product_id,
+        #         quantity=item_data.quantity,
+        #         price=item_data.price
+        #     )
+        #     db_order.items.append(db_item)
         
-        session.add(db_order)
-        session.commit()
-        session.refresh(db_order)
-        return order_data
+        # session.add(db_order)
+        # session.commit()
+        # session.refresh(db_order)
+        # return order_data
 
 
 @app.get("/orders/", response_model=list[Order])
@@ -114,12 +121,21 @@ def orderitem_by_orderid(order_id:int, session: Annotated[Session, Depends(get_s
     return orderitem
 
 @app.patch("/order_update/{order_id}")
-def update_order(order_id: int, order_in: UpdateOrder, session: Session):
-     order_to_update = session.get(Order, order_id).one_or_none()
+def update_order(order_id: int, order_in: UpdateOrder, session: Annotated[Session, Depends(get_session)]):
+     order_to_update = session.get(Order, order_id)
      order_data = order_in.model_dump(exclude_unset=True)
      order = order_to_update.sqlmodel_update(order_data)
      session.add(order)
      session.commit()
      session.refresh(order)
-     return order
+     return {"Updated Order":order}
 
+@app.patch("/item_update/{order_id}")
+def update_item(order_id: int, item_in: UpdateItem, session: Annotated[Session, Depends(get_session)]):
+     item_to_update = session.get(OrderItem,order_id)
+     item_data = item_in.model_dump(exclude_unset=True)
+     item = item_to_update.sqlmodel_update(item_data)
+     session.add(item)
+     session.commit()
+     session.refresh(item)
+     return {"Updated Item":item}
