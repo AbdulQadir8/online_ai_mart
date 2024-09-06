@@ -32,7 +32,7 @@ def create_db_and_tables()->None:
 async def lifespan(app: FastAPI)-> AsyncGenerator[None, None]:
     print("Creating tables..")
     create_db_and_tables()
-    task = asyncio.create_task(consume_order_messages("InventoryReserved", 'broker:19092'))
+    task = asyncio.create_task(consume_order_messages("order_payment_events", 'broker:19092'))
     yield
 
 
@@ -58,7 +58,7 @@ app.add_middleware(
 
 @app.get("/")
 def read_root():
-    return {"App": "Payment Service"}
+    return {"App1": "Payment Service"}
 
 @app.post("/create-checkout-session/")
 def create_checkout_session(payment_id: int, session: Session = Depends(get_session)):

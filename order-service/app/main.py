@@ -31,7 +31,7 @@ def create_db_and_tables()->None:
 async def lifespan(app: FastAPI)-> AsyncGenerator[None, None]:
     print("Creating tables..")
     create_db_and_tables()
-    task = asyncio.create_task(consume_messages('order_events', 'broker:19092'))
+    task = asyncio.create_task(consume_messages('InventoryReserved', 'broker:19092'))
     yield
 
 
@@ -53,7 +53,7 @@ app = FastAPI(
 
 @app.get("/")
 def read_root():
-    return {"Hellowj": "Order Service"}
+    return {"Hellow1": "Order Service"}
 
 @app.post("/order/")
 async def create_order(order_data: CreateOrder, session: Annotated[Session, Depends(get_session)], producer: Annotated[AIOKafkaProducer, Depends(get_kafka_producer)]):
@@ -70,27 +70,7 @@ async def create_order(order_data: CreateOrder, session: Annotated[Session, Depe
     await producer.send_and_wait("order_events",order_json)
     return order_data
 
-        # # Convert the CreateOrderItem Pydantic model to the SQLAlchemy model
-        # db_order = Order(
-        #     user_id=order_data.user_id,
-        #     status=order_data.status,
-        #     total_amount=order_data.total_amount
-        # )
-
-        # # Convert each CreateOrderItem to an OrderItem and add to db_order.items
-        # for item_data in order_data.items:
-        #     db_item = OrderItem(
-        #         product_id=item_data.product_id,
-        #         quantity=item_data.quantity,
-        #         price=item_data.price
-        #     )
-        #     db_order.items.append(db_item)
-        
-        # session.add(db_order)
-        # session.commit()
-        # session.refresh(db_order)
-        # return order_data
-
+ 
 
 @app.get("/orders/", response_model=list[Order])
 def read_orders(session: Annotated[Session, Depends(get_session)]):

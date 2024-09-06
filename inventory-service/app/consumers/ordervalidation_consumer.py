@@ -32,10 +32,11 @@ async def consume_order_messages(topic, bootstrap_servers):
                 # Extract Quantity value
                 order_data = json.loads(message.value.decode())
                 logging.info(f"Decoded order data: {order_data}")
-                orderitem = order_data["orderitem"]
+                orderitem = order_data["items"]
+                logging.info(f"Items:{orderitem}")
 
-                product_id = orderitem["product_id"]
-                quantity_value = orderitem["quantity"]
+                product_id = orderitem[0].get("product_id")
+                quantity_value = orderitem[0].get("quantity")
                 logging.info(f"Product ID:, {product_id}")
                 logging.info(f"Quantity Value:, {quantity_value}")
 

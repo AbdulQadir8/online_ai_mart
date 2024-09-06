@@ -22,9 +22,8 @@ async def consume_order_messages(topic, bootstrap_servers):
             # logging.info(f"Received message on topic {message.topic} at offset {message.offset}")
             logging.info(f"Message Value: {message.value}")
 
-            order_event = json.loads(message.value.decode())
-            logging.info(f"Decoded order data: {order_event}")
-            order_data = order_event.get("order")
+            order_data = json.loads(message.value.decode())
+            logging.info(f"Decoded order data: {order_data}")
 
             order_id = order_data["id"]
             user_id = order_data["user_id"]
