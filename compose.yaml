@@ -9,8 +9,6 @@ services:
     restart: always # Any Issue when RUnning Contianer = ShutDown
     volumes:
       - ./todo:/code  # Sync local development directory with the container
-    networks:
-      - mart-network
     depends_on:
         - postgres_db
         - broker
@@ -23,8 +21,6 @@ services:
       dockerfile: Dockerfile.dev
     volumes:
       - ./microservice_02:/code  # Sync local development directory with the container
-    networks:
-      - mart-network
     depends_on:
         - postgres_db
         - broker
@@ -37,8 +33,6 @@ services:
       dockerfile: Dockerfile.dev
     volumes:
       - ./product-service:/code  # Sync local development directory with the container
-    networks:
-      - mart-network
     depends_on:
         - broker
         - postgres_product_db
@@ -51,8 +45,6 @@ services:
       dockerfile: Dockerfile.dev
     volumes:
       - ./inventory-service:/code  # Sync local development directory with the container
-    networks:
-      - mart-network
     depends_on:
         - broker
         - postgres_inventory_db
@@ -65,8 +57,6 @@ services:
       dockerfile: Dockerfile.dev
     volumes:
       - ./order-service:/code  # Sync local development directory with the container
-    networks:
-      - mart-network
     depends_on:
         - broker
         - postgres_order_db
@@ -79,8 +69,6 @@ services:
       dockerfile: Dockerfile.dev
     volumes:
       - ./payment-service:/code  # Sync local development directory with the container
-    networks:
-      - mart-network
     depends_on:
         - broker
         - postgres_payment_db
@@ -93,13 +81,23 @@ services:
       dockerfile: Dockerfile.dev
     volumes:
       - ./user-service:/code # Sync local development directory with the container
-    networks:
-      - mart-network
     depends_on:
       - broker
       - postgres_user_db
     ports:
       - "8009:8000"  # Expose container port 8000 to host port 8009
+  notification-service:
+    image: notification-mart-api
+    build:
+      context: ./notification-service
+      dockerfile: Dockerfile.dev
+    volumes:
+      - ./notification-service:/code # Sync local development directory with the container
+    depends_on:
+      - broker
+      - postgres_notification_db
+    ports:
+      - "8010:8000"  # Expose container port 8000 to host port 8009
   postgres_db:
     image: postgres:latest  # Use the official PostgreSQL image
     restart: always
@@ -112,8 +110,7 @@ services:
         - '5480:5432'
     volumes:
         - postgres_db:/var/lib/postgresql/data
-    networks:
-      - mart-network
+
 
   postgres_product_db:
     image: postgres:latest  # Use the official PostgreSQL image
@@ -127,8 +124,7 @@ services:
         - '5481:5432'
     volumes:
         - postgres_product_db:/var/lib/postgresql/data
-    networks:
-      - mart-network
+ 
   postgres_inventory_db:
     image: postgres:latest  # Use the official PostgreSQL image
     restart: always
@@ -141,8 +137,7 @@ services:
         - '5482:5432'
     volumes:
         - postgres_inventory_db:/var/lib/postgresql/data
-    networks:
-      - mart-network
+ 
   postgres_order_db:
     image: postgres:latest  # Use the official PostgreSQL image
     restart: always
@@ -155,8 +150,7 @@ services:
         - '5483:5432'
     volumes:
         - postgres_order_db:/var/lib/postgresql/data
-    networks:
-      - mart-network
+
   postgres_payment_db:
     image: postgres:latest # Use the official PostgreSQL image
     restart: always
@@ -169,8 +163,7 @@ services:
       - '5484:5432'
     volumes:
       - postgres_payment_db:/var/lib/postgresql/data
-    networks:
-      - mart-network
+
   postgres_user_db:
     image: postgres:latest # Use the official PostgreSQL image
     restart: always
@@ -183,8 +176,18 @@ services:
       - '5485:5432'
     volumes:
       - postgres_user_db:/var/lib/postgresql/data
-    networks:
-      - mart-network
+  postgres_notification_db:
+    image: postgres:latest # Use the official PostgreSQL image
+    restart: always
+    container_name: PostgresNotificationCont
+    environment:
+      - POSTGRES_USER=usamaali
+      - POSTGRES_PASSWORD=my_password
+      - POSTGRES_DB=notification_database
+    ports:
+      - '5486:5432'
+    volumes:
+      - postgres_notification_db:/var/lib/postgresql/data
 
   broker:
     image: apache/kafka:3.7.0
@@ -207,8 +210,6 @@ services:
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
       KAFKA_LOG_DIRS: '/tmp/kraft-combined-logs'
-    networks:
-      - mart-network
 
   kafka-ui:
     image: provectuslabs/kafka-ui
@@ -221,8 +222,7 @@ services:
       DYNAMIC_CONFIG_ENABLED: "true"
     depends_on:
       - broker
-    networks:
-      - mart-network
+
 volumes:
   postgres_db:
     driver: local
@@ -236,9 +236,12 @@ volumes:
     driver: local
   postgres_user_db:
     driver: local
-# networks:
-#   default:
-#     driver: bridge
-
+  postgres_notification_db:
+    driver: local
+    
 networks:
-  mart-network: # Define the custom network
+  default:
+    driver: bridge
+
+# networks:
+#   mart-network: # Define the custom network
