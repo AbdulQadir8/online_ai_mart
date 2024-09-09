@@ -48,10 +48,6 @@ class UserUpdateMe(SQLModel):
     email: str | None = None
 
 
-class UpdatePassword(SQLModel):
-    current_password: str
-    new_password: str
-
 
 
 # Database model, database table inferred from class name
@@ -85,7 +81,15 @@ class Token(SQLModel):
 class TokenPayload(SQLModel):
     sub: str | None = None
 
+class PasswordResetRequest(SQLModel):
+    email: str
 
 class NewPassword(SQLModel):
     token: str
     new_password: str
+
+
+class UpdatePassword(SQLModel):
+    current_password: str
+    new_password: str
+

@@ -17,7 +17,7 @@ async def send_email(user_id: int, message: str):
     smtp_server = 'smtp.gmail.com'  # Replace with your SMTP server
     smtp_port = 587
     smtp_username = 'aq98123@gmail.com'
-    smtp_password = 'abdulqadar678'
+    smtp_password = 'ttba ybjs xels ofof'
 
     try:
         with smtplib.SMTP(smtp_server, smtp_port) as server:

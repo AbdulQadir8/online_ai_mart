@@ -1,19 +1,18 @@
 # main.py
-from jose import jwt, JWTError
-from fastapi.security import OAuth2PasswordRequestForm, OAuth2PasswordBearer
-from datetime import datetime, timedelta
+from jose import  JWTError
+from fastapi.security import OAuth2PasswordRequestForm
+from datetime import timedelta
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Depends, HTTPException
 from typing import AsyncGenerator, Annotated, Any
-from aiokafka import AIOKafkaConsumer
-import asyncio
+from aiokafka import  AIOKafkaProducer
 
 from app.db_engine import engine
-from sqlmodel import SQLModel, Session, select, func
-from app.deps import CurrentUser, SessionDep, get_current_active_superuser
+from sqlmodel import SQLModel, select, func
+from app.deps import CurrentUser, SessionDep, get_current_active_superuser, get_kafka_producer
 from app.utils import create_access_token
-from app.models.user_model import User, UserCreate, UserPublic, UsersPublic, UserUpdate, UserRegister, UserUpdateMe,UpdatePassword, Message
-from .utils import get_hashed_password, verify_password, decode_token
+from app.models.user_model import User, UserCreate, UserPublic, UsersPublic, UserUpdate, UserRegister, UserUpdateMe,UpdatePassword, Message, PasswordResetRequest, NewPassword
+from .utils import get_hashed_password, verify_password, decode_token, create_reset_token, verify_reset_token
 from app.crud import user_crud
 import logging
 logging.basicConfig(level=logging.INFO)
@@ -184,23 +183,62 @@ def read_user_by_id(user_id: int, session: SessionDep, current_user: CurrentUser
 
 
 
-@app.patch("/me/password", response_model=Message)
-def update_password_me(*, session: SessionDep, body: UpdatePassword, current_user: CurrentUser)-> Any:
-    """
-    Update own password.
-    """
-    if not verify_password(body.current_password, current_user.hashed_password):
-        raise HTTPException(status_code=400, detail="Incorrect password")
-    if body.current_password == body.new_password:
-        raise HTTPException(
-            status_code=400, detail="New Password cannot be the same as the current one"
-        )
-    hashed_password = get_hashed_password(body.new_password)
-    current_user.hashed_password = hashed_password
-    session.add(current_user)
-    session.commit()
-    return Message(message="Password update successfully")
+# @app.patch("/me/password", response_model=Message)
+# def update_password_me(*, session: SessionDep, body: UpdatePassword, current_user: CurrentUser)-> Any:
+#     """
+#     Update own password.
+#     """
+#     if not verify_password(body.current_password, current_user.hashed_password):
+#         raise HTTPException(status_code=400, detail="Incorrect password")
+#     if body.current_password == body.new_password:
+#         raise HTTPException(
+#             status_code=400, detail="New Password cannot be the same as the current one"
+#         )
+#     hashed_password = get_hashed_password(body.new_password)
+#     current_user.hashed_password = hashed_password
+#     session.add(current_user)
+#     session.commit()
+#     return Message(message="Password update successfully")
 
+
+@app.post("/password-reset-request/")
+def password_reset_request(data: PasswordResetRequest,
+                           session: SessionDep,
+                           producer: Annotated[AIOKafkaProducer, Depends(get_kafka_producer)]):
+    user = user_crud.get_user_by_email(session, data.email)
+    if not user:
+        raise HTTPException(status_code=404, detail="Email not found")
+    
+    # Generate a password reset token
+    reset_token = create_reset_token(user.email)
+    # Simulate sending the reset email (you should integrate with an email service)
+    reset_token = create_reset_token(user.email)
+    frontend_reset_url = "https://your-app.com/reset-password"
+    reset_link = f"{frontend_reset_url}?token={reset_token}"
+
+    # Send the email with the reset link
+    # send_reset_email(user.email, reset_link)
+    
+    print(f"Password reset token: {reset_token}")
+    return {"msg": "Password reset link sent (check your email)"}
+
+@app.post("/password-reset/{token}")
+def password_reset(data: NewPassword,
+                   session: SessionDep):
+    # Verify the reset token
+    email = verify_reset_token(data.token)
+    if email is None:
+        raise HTTPException(status_code=400, detail="Invalid or expired token")
+    
+    user = user_crud.get_user_by_email(session, email)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Reset the user's password
+    user.hashed_password = get_hashed_password(data.new_password)
+    session.add(user)
+    session.commit()
+    return {"msg": "Password reset successful"}
 
 @app.patch("/{user_id}",dependencies=[Depends(get_current_active_superuser)],response_model=UserPublic)
 def update_user(*,session: SessionDep, user_id: int, user_in: UserUpdate) -> Any:
