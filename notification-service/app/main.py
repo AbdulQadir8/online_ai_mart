@@ -6,7 +6,7 @@ from typing import AsyncGenerator, Annotated
 from aiokafka import AIOKafkaProducer
 import asyncio
 from app.db_engine import engine
-from app.consumers.consumer import consume_messages
+from app.consumers.consumer import consume__order_messages
 from app.deps import get_session, get_kafka_producer
 import json
 
@@ -20,7 +20,8 @@ async def lifespan(app: FastAPI)-> AsyncGenerator[None, None]:
     print("Creating tables..")
     create_db_and_tables()
     
-    task = asyncio.create_task(consume_messages('notification_events', 'broker:19092'))
+    task1 = asyncio.create_task(consume__order_messages('order_notification_events', 'broker:19092'))
+    task2 = asyncio.create_task(consume__order_messages('password_reset_events', 'broker:19092'))
     yield
 
 
@@ -41,17 +42,18 @@ app = FastAPI(lifespan=lifespan, title="Notification Service api with DB",
 def read_root():
     return {"App1": "Notification Service"}
 @app.post("/notifications/")
-async def create_notification(user_id: int, message: str,
+async def create_notification(user_id: int, email: str, message: str,
                               producer: Annotated[AIOKafkaProducer, Depends(get_kafka_producer)]):
     notification_data = {
         "user_id": user_id,
+        "email":email,
         "message": message,
         "notification_type": "email"
     }
     notification_json = json.dumps(notification_data).encode("utf-8")
     # Publish to Kafka topic for processing
-    await producer.send_and_wait("notification_events", notification_json)
-    return {"status": "Notification enqueued"}
+    await producer.send_and_wait("order_notification_events", notification_json)
+    return {"status": "Order Notification enqueued"}
 
 @app.get("/notifications/{notification_id}")
 async def get_notification_status(notification_id: int):

@@ -26,6 +26,7 @@ async def process_notification(event_data: dict):
     # Assuming event_data contains 'user_id', 'message', 'notification_type'
     logging.info(f"Event_DATA:{event_data}")
     user_id = event_data['user_id']
+    recipient_email = event_data['email']
     message = event_data['message']
     notification_type = event_data['notification_type']
     
@@ -41,7 +42,7 @@ async def process_notification(event_data: dict):
         #Send Email
         if notification_type == NotificationType.EMAIL:
             try:
-                await send_email(user_id, message)
+                await send_email(user_id, recipient_email, message)
                 notification.status = NotificationStatus.SENT
                 logging.info("Email sent Successfully")
             except Exception as e:
