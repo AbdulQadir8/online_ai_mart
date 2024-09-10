@@ -2,10 +2,10 @@ import smtplib
 from email.mime.text import MIMEText
 from sqlmodel import Session
 
-async def send_email(user_id: int, recipient_email: str, message: str):        
+async def send_email(user_id: int, recipient_email: str, message: str, subject: str):        
     sender_email = 'aq98123@gmail.com'
     recipient_email = recipient_email
-    subject = "Notification from FastAPI Notification App"
+    subject = subject
 
     # Create the email content
     msg = MIMEText(message, 'plain')

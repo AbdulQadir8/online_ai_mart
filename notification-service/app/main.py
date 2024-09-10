@@ -1,12 +1,13 @@
 # main.py
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Depends
-from sqlmodel import SQLModel
+from sqlmodel import SQLModel, Session
 from typing import AsyncGenerator, Annotated
 from aiokafka import AIOKafkaProducer
 import asyncio
 from app.db_engine import engine
-from app.consumers.consumer import consume__order_messages
+from app.consumers.consumer import consume__order_messages, consume_pass_rest_messages
+from app.models.notification_model import Notification
 from app.deps import get_session, get_kafka_producer
 import json
 
@@ -21,7 +22,7 @@ async def lifespan(app: FastAPI)-> AsyncGenerator[None, None]:
     create_db_and_tables()
     
     task1 = asyncio.create_task(consume__order_messages('order_notification_events', 'broker:19092'))
-    task2 = asyncio.create_task(consume__order_messages('password_reset_events', 'broker:19092'))
+    task2 = asyncio.create_task(consume_pass_rest_messages('password_reset_events', 'broker:19092'))
     yield
 
 
@@ -40,7 +41,7 @@ app = FastAPI(lifespan=lifespan, title="Notification Service api with DB",
 
 @app.get("/")
 def read_root():
-    return {"App1": "Notification Service"}
+    return {"App": "Notification Service"}
 @app.post("/notifications/")
 async def create_notification(user_id: int, email: str, message: str,
                               producer: Annotated[AIOKafkaProducer, Depends(get_kafka_producer)]):
@@ -56,7 +57,7 @@ async def create_notification(user_id: int, email: str, message: str,
     return {"status": "Order Notification enqueued"}
 
 @app.get("/notifications/{notification_id}")
-async def get_notification_status(notification_id: int):
+async def get_notification_status(notification_id: int, session: Annotated[Session, Depends(get_session)]):
     notification = session.get(Notification, notification_id)
     if not notification:
         return {"error": "Notification not found"}

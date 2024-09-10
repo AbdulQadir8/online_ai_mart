@@ -75,6 +75,7 @@ async def create_order(order_data: CreateOrder,
     # Convert order_data to a dictionary and handle datetime fields
     order_dict = order_data.dict()
     order_dict["user_id"] = user_data["id"]
+    order_dict["user_email"] = user_data["email"]
     order_dict["created_at"] = order_data.created_at.isoformat()
     order_dict["updated_at"] = order_data.updated_at.isoformat()
     logging.info(f"OrderDict:{order_dict}")

@@ -15,6 +15,7 @@ from app.models.user_model import User, UserCreate, UserPublic, UsersPublic, Use
 from .utils import get_hashed_password, verify_password, decode_token, create_reset_token, verify_reset_token
 from app.crud import user_crud
 import logging
+import json
 logging.basicConfig(level=logging.INFO)
 
 # ALGORITHM: str = "HS256"
@@ -202,27 +203,37 @@ def read_user_by_id(user_id: int, session: SessionDep, current_user: CurrentUser
 
 
 @app.post("/password-reset-request/")
-def password_reset_request(data: PasswordResetRequest,
+async def password_reset_request(data: PasswordResetRequest,
                            session: SessionDep,
                            producer: Annotated[AIOKafkaProducer, Depends(get_kafka_producer)]):
-    user = user_crud.get_user_by_email(session, data.email)
+    user = user_crud.get_user_by_email(session=session, email=data.email)
     if not user:
         raise HTTPException(status_code=404, detail="Email not found")
     
     # Generate a password reset token
     reset_token = create_reset_token(user.email)
     # Simulate sending the reset email (you should integrate with an email service)
+
     reset_token = create_reset_token(user.email)
-    frontend_reset_url = "https://your-app.com/reset-password"
+    frontend_reset_url = "http://127.0.0.1:8009/password-reset"
     reset_link = f"{frontend_reset_url}?token={reset_token}"
+    message = f"Password reset link: {reset_link} Note: Ignore this message if you do not request for password reset"
 
     # Send the email with the reset link
-    # send_reset_email(user.email, reset_link)
+    # send_reset_email(user.email, reset_link
+    data_dict = {"user_id":user.id, 
+                 "email":user.email,
+                 "message":message, 
+                 "subject":"Reset password  confirmation!", 
+                 "notification_type": "email"}
+    data_json = json.dumps(data_dict).encode("utf-8")
+    await producer.send_and_wait("password_reset_events",data_json)
     
     print(f"Password reset token: {reset_token}")
     return {"msg": "Password reset link sent (check your email)"}
 
-@app.post("/password-reset/{token}")
+
+@app.post("/password-reset")
 def password_reset(data: NewPassword,
                    session: SessionDep):
     # Verify the reset token
@@ -230,7 +241,7 @@ def password_reset(data: NewPassword,
     if email is None:
         raise HTTPException(status_code=400, detail="Invalid or expired token")
     
-    user = user_crud.get_user_by_email(session, email)
+    user = user_crud.get_user_by_email(session=session, email=email)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     

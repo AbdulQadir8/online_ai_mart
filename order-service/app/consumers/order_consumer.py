@@ -52,6 +52,13 @@ async def consume_messages(topic, bootstrap_servers):
                     order_dict = {"id":db_order.id,"user_id":db_order.user_id,"total_amount":db_order.total_amount}
                     order_json = json.dumps(order_dict).encode("utf-8")
                     await producer.send_and_wait("order_payment_events",order_json)
+                    order_notifi_dict = {"user_id":order_data["user_id"],
+                                        "email":order_data["user_email"],
+                                        "message":"Thank you for your order. We are processing it and will notify you once the payment is confirmed.",
+                                        "subject":f"Your Order #{db_order.id} Has Been Received!",
+                                        "notification_type": "email"}
+                    order_notifi_json = json.dumps(order_notifi_dict).encode("utf-8")
+                    await producer.send_and_wait("order_notification_events",order_notifi_json)
                 # Commit the message offset after successful processing
                 await consumer.commit()
             except Exception as e:
