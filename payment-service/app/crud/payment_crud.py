@@ -16,7 +16,8 @@ def create_payment(session: Session, payment_data: Payment) -> Payment:
     return payment
 
 def get_payment(session: Session, payment_id: int) -> Payment | None:
-    return session.get(Payment, payment_id)
+    payment = session.get(Payment, payment_id)
+    return payment
 
 def update_payment_status(session: Session, payment_id: int, status: str) -> Payment | None:
     payment = session.get(Payment, payment_id)

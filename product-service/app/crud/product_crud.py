@@ -27,7 +27,7 @@ def get_product_by_id(product_id: int, session: Session):
 # Delete Product by ID
 def delete_product_by_id(product_id: int, session: Session):
     #Step 1: Get the Product by ID
-    product = session.exec(select(Product).where (Product.id == product_id)).one_or_none()
+    product = session.exec(select(Product).where(Product.id == product_id)).one_or_none()
     if product is None:
         raise HTTPException(status_code=404, detail="Product not found")
     #Step 2: Delete the Product

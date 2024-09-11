@@ -3,9 +3,11 @@ from contextlib import asynccontextmanager
 import stripe
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.responses import RedirectResponse
-from typing import AsyncGenerator
-from aiokafka import AIOKafkaConsumer
+from typing import AsyncGenerator, Annotated
+from datetime import datetime
+from aiokafka import AIOKafkaProducer
 import asyncio
+import json
 from app.consumers.consumer import consume_order_messages
 from app.models.payment_model import Payment, Transaction
 from app.db_engine import engine
@@ -32,7 +34,7 @@ def create_db_and_tables()->None:
 async def lifespan(app: FastAPI)-> AsyncGenerator[None, None]:
     print("Creating tables..")
     create_db_and_tables()
-    task = asyncio.create_task(consume_order_messages("order_payment_events", 'broker:19092'))
+    task = asyncio.create_task(consume_order_messages("payment_events", 'broker:19092'))
     yield
 
 
@@ -58,14 +60,71 @@ app.add_middleware(
 
 @app.get("/")
 def read_root():
-    return {"App1": "Payment Service"}
+    return {"App": "Payment Service"}
 
 @app.post("/create-checkout-session/")
-def create_checkout_session(payment_id: int, session: Session = Depends(get_session)):
+async def create_checkout_session(payment_id: int,
+                                  session: Annotated[Session, Depends(get_session)],
+                                  producer: Annotated[AIOKafkaProducer, Depends(get_kafka_producer)]):
+
+    # payment_id_json = json.dumps(payment_id).encode("utf-8")
+    # print(f"Payment Id Json: {payment_id_json}")
+    # #Produce Message
+    # await producer.send_and_wait("payment_events",payment_id_json)
+    # return {"message":"Payment Initiated"}
+
+
+
+
+    # payment = session.get(Payment, payment_id)
+    # if not payment:
+    #     raise HTTPException(status_code=404, detail="Payment not found")
+    
+    # try:
+    #     # Create Stripe Checkout Session
+    #     checkout_session = stripe.checkout.Session.create(
+    #         payment_method_types=['card'],
+    #         line_items=[{
+    #             'price_data': {
+    #                 'currency': payment.currency,
+    #                 'product_data': {
+    #                     'name': f'Order {payment.order_id}',
+    #                 },
+    #                 'unit_amount': int(payment.amount * 100),  # Amount in cents
+    #             },
+    #             'quantity': 1
+    #         }],
+    #         mode='payment',
+    #         success_url='https://www.youtube.com/watch?v=QxcGFmVdcFQ',
+    #         cancel_url='https://www.youtube.com/watch?v=QxcGFmVdcFQ',
+    #         metadata= {
+    #                 'user_id': payment.user_id,
+    #                 'payment_id': payment.id
+    #                 }
+    #     )
+     
+    #     # Update Payment Record
+    #     payment.stripe_checkout_session_id = checkout_session.id
+    #     session.add(payment)
+    #     session.commit()
+    #     return RedirectResponse(url=checkout_session.url, status_code=303)
+    # except stripe.error.StripeError as e:
+    #     raise HTTPException(status_code=400, detail=str(e))
+
     payment = session.get(Payment, payment_id)
-    if not payment:
+    if payment is None:
         raise HTTPException(status_code=404, detail="Payment not found")
     
+    # Create a new Transaction for this payment attempt
+    transaction = Transaction(
+        payment_id=payment_id,
+        status="initiated",  # Initial status of the transaction
+        created_at=datetime.utcnow(),
+        updated_at=datetime.utcnow()
+    )
+    session.add(transaction)
+    session.commit()  # Commit transaction creation to DB
+    session.refresh(transaction)
     try:
         # Create Stripe Checkout Session
         checkout_session = stripe.checkout.Session.create(
@@ -81,21 +140,37 @@ def create_checkout_session(payment_id: int, session: Session = Depends(get_sess
                 'quantity': 1
             }],
             mode='payment',
-            success_url='https://www.youtube.com/watch?v=QxcGFmVdcFQ',
-            cancel_url='https://www.youtube.com/watch?v=QxcGFmVdcFQ',
-            metadata= {
-                    'user_id': payment.user_id,
-                    'payment_id': payment.id
-                    }
+            success_url='https://your-site.com/payment-success?session_id={CHECKOUT_SESSION_ID}',
+            cancel_url='https://your-site.com/payment-cancel',
+            metadata={
+                'user_id': payment.user_id,
+                'payment_id': payment.id,
+                'transaction_id': transaction.id  # Track which transaction this corresponds to
+            }
         )
-     
-        # Update Payment Record
+        
+        # Update the Payment and Transaction records with Stripe details
         payment.stripe_checkout_session_id = checkout_session.id
+        payment.updated_at = datetime.utcnow()  # Track the last update time for payment
+        
+        transaction.status = "processing"  # Mark transaction as processing
+        transaction.updated_at = datetime.utcnow()
         session.add(payment)
+        session.add(transaction)
         session.commit()
+
+        # Redirect to Stripe checkout URL
         return RedirectResponse(url=checkout_session.url, status_code=303)
+    
     except stripe.error.StripeError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        # Handle Stripe error and mark the transaction as failed
+        transaction.status = "failed"
+        transaction.updated_at = datetime.utcnow()
+        session.add(transaction)
+        session.commit()
+
+        raise HTTPException(status_code=400, detail=f"Stripe error: {str(e)}")
+
 
 
 
