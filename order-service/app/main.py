@@ -11,7 +11,7 @@ from aiokafka import AIOKafkaProducer
 from app.db_engine import engine
 import asyncio
 import json
-from app.deps import get_kafka_producer, get_session, custom_json_serializer
+from app.deps import get_kafka_producer, get_session
 from app.models.order_model import CreateOrder, Order, OrderItem, UpdateOrder, UpdateItem, OrderItem
 from app.consumers.order_consumer import consume_messages
 from app.crud.order_crud import get_single_order, add_new_order

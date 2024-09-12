@@ -2,20 +2,20 @@
 from contextlib import asynccontextmanager
 import stripe
 from fastapi import FastAPI, Depends, HTTPException
-from fastapi.responses import RedirectResponse
+from fastapi.security import OAuth2PasswordBearer,OAuth2PasswordRequestForm
 from typing import AsyncGenerator, Annotated
 from datetime import datetime
 from aiokafka import AIOKafkaProducer
-import asyncio
 import json
 from app.consumers.consumer import consume_order_messages
 from app.models.payment_model import Payment, Transaction
 from app.db_engine import engine
 from sqlmodel import SQLModel, Session
-from app.deps import get_kafka_producer, get_session
+from app.deps import get_kafka_producer, get_session, GetCurrentAdminDep
+from app.requests import get_current_user, login_for_access_token
 from app.crud.payment_crud import (create_payment, update_payment_status,get_payment,
                                     get_transaction, create_transaction,
-                                    update_transaction_status, create_checkout_session)
+                                    update_transaction_status)
 from fastapi.middleware.cors import CORSMiddleware
 import stripe
 stripe.api_key = "sk_test_51PjlvEP3SJXV8PQkTdnMMA06tDTmZ7zktKhp9UvaPohoYDifcemNlip9zQZpTl6P9SShULaTxcN2yfK8o6Nwgznp000coKzVJN"
@@ -34,7 +34,7 @@ def create_db_and_tables()->None:
 async def lifespan(app: FastAPI)-> AsyncGenerator[None, None]:
     print("Creating tables..")
     create_db_and_tables()
-    task = asyncio.create_task(consume_order_messages("payment_events", 'broker:19092'))
+    # task = asyncio.create_task(consume_order_messages("payment_events", 'broker:19092'))
     yield
 
 
@@ -62,17 +62,22 @@ app.add_middleware(
 def read_root():
     return {"App": "Payment Service"}
 
+@app.post("/login-endpoint", tags=["Wrapper Auth"])
+def get_login_for_access_token(form_data: Annotated[OAuth2PasswordRequestForm, Depends(OAuth2PasswordRequestForm)]):
+    auth_token = login_for_access_token(form_data)
+    return auth_token
+
 @app.post("/create-checkout-session/")
 async def create_checkout_session(payment_id: int,
                                   session: Annotated[Session, Depends(get_session)],
-                                  producer: Annotated[AIOKafkaProducer, Depends(get_kafka_producer)]):
+                                  producer: Annotated[AIOKafkaProducer, Depends(get_kafka_producer)],
+                                  user_data: Annotated[str | None, Depends(get_current_user)]):
 
     # payment_id_json = json.dumps(payment_id).encode("utf-8")
     # print(f"Payment Id Json: {payment_id_json}")
     # #Produce Message
     # await producer.send_and_wait("payment_events",payment_id_json)
     # return {"message":"Payment Initiated"}
-
 
     payment = session.get(Payment, payment_id)
     if payment is None:
@@ -124,16 +129,17 @@ async def create_checkout_session(payment_id: int,
 
         # Prepare the message for Kafka (to send email notification)
         email_event = {
-            "user_id": payment.user_id,
-            "email": "user@example.com",  # Assuming email is available
-            "message": f"Your payment for Order {payment.order_id} is now processing.",
-            "status": "processing"
+            "user_id": user_data["id"],
+            "email": user_data["email"],  
+            "message": f"Your payment for Order #{payment.order_id} is now processing.",
+            "subject": "Pament processing!",
+            "notification_type":"email"
         }
         # Serialize the event data to JSON
         email_event_json = json.dumps(email_event).encode("utf-8")
 
         # Produce the event to Kafka for email notification
-        await producer.send_and_wait("payment_events", email_event_json)
+        await producer.send_and_wait("order_notification_events", email_event_json)
         print(f"Sent email notification event for Payment ID: {payment_id}")
 
         # Redirect to Stripe checkout URL
@@ -148,31 +154,32 @@ async def create_checkout_session(payment_id: int,
 
         # Send failure email event via Kafka
         email_event = {
-            "user_id": payment.user_id,
-            "email": "user@example.com",
-            "message": f"Your payment for Order {payment.order_id} failed.",
-            "status": "failed"
+            "user_id": user_data["id"],
+            "email": user_data["email"],
+            "message": f"Your payment for Order #{payment.order_id} failed.",
+            "subject": "Payment failed!",
+            "notification_type":"email"
         }
         email_event_json = json.dumps(email_event).encode("utf-8")
-        await producer.send_and_wait("payment_events", email_event_json)
+        await producer.send_and_wait("order_notification_events", email_event_json)
         print(f"Sent email notification event for failed Payment ID: {payment_id}")
 
         raise HTTPException(status_code=400, detail=f"Stripe error: {str(e)}")
 
 
 
-@app.post("/payments/", response_model=Payment)
+@app.post("/payments/", response_model=Payment, dependencies=[GetCurrentAdminDep])
 def create_payment_endpoint(payment_data: Payment, session: Session = Depends(get_session)):
     return create_payment(session, payment_data)
 
-@app.get("/payments/{payment_id}", response_model=Payment)
+@app.get("/payments/{payment_id}", response_model=Payment, dependencies=[GetCurrentAdminDep])
 def get_payment_endpoint(payment_id: int, session: Session = Depends(get_session)):
     payment = get_payment(session, payment_id)
     if not payment:
         raise HTTPException(status_code=404, detail="Payment not found")
     return payment
 
-@app.patch("/payments/{payment_id}", response_model=Payment)
+@app.patch("/payments/{payment_id}", response_model=Payment, dependencies=[GetCurrentAdminDep])
 def update_payment_status_endpoint(payment_id: int, status: str, session: Session = Depends(get_session)):
     payment = update_payment_status(session, payment_id, status)
     if not payment:
@@ -181,18 +188,18 @@ def update_payment_status_endpoint(payment_id: int, status: str, session: Sessio
 
 
 
-@app.post("/transactions/", response_model=Transaction)
+@app.post("/transactions/", response_model=Transaction, dependencies=[GetCurrentAdminDep])
 def create_transaction_endpoint(transaction_data: Transaction, session: Session = Depends(get_session)):
     return create_transaction(session, transaction_data)
 
-@app.get("/transactions/{transaction_id}", response_model=Transaction)
+@app.get("/transactions/{transaction_id}", response_model=Transaction, dependencies=[GetCurrentAdminDep])
 def get_transaction_endpoint(transaction_id: int, session: Session = Depends(get_session)):
     transaction = get_transaction(session, transaction_id)
     if not transaction:
         raise HTTPException(status_code=404, detail="Transaction not found")
     return transaction
 
-@app.patch("/transactions/{transaction_id}", response_model=Transaction)
+@app.patch("/transactions/{transaction_id}", response_model=Transaction, dependencies=[GetCurrentAdminDep])
 def update_transaction_status_endpoint(transaction_id: int, status: str, session: Session = Depends(get_session)):
     transaction = update_transaction_status(session, transaction_id, status)
     if not transaction:

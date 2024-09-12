@@ -31,7 +31,7 @@ def get_session():
 def get_current_admin_dep(token: Annotated[str |  None, Depends(oauth2_scheme)]):
     user = requests.get_current_user(token)
     if user.get("is_superuser") == False:
-        raise HTTPException(status_code=403, details="User doesn't have enough privileges")
+        raise HTTPException(status_code=403, detail="User doesn't have enough privileges")
     return user
 
 GetCurrentAdminDep = Depends(get_current_admin_dep)

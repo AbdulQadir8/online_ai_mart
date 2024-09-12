@@ -1,5 +1,5 @@
 # main.py
-from jose import  JWTError
+from jose import  JWTError, jwt
 from fastapi.security import OAuth2PasswordRequestForm
 from datetime import timedelta
 from contextlib import asynccontextmanager
@@ -10,7 +10,7 @@ from aiokafka import  AIOKafkaProducer
 from app.db_engine import engine
 from sqlmodel import SQLModel, select, func
 from app.deps import CurrentUser, SessionDep, get_current_active_superuser, get_kafka_producer
-from app.utils import create_access_token
+from app.utils import create_access_token, create_refresh_token, decode_token
 from app.models.user_model import User, UserCreate, UserPublic, UsersPublic, UserUpdate, UserRegister, UserUpdateMe,UpdatePassword, Message, PasswordResetRequest, NewPassword
 from .utils import get_hashed_password, verify_password, decode_token, create_reset_token, verify_reset_token
 from app.crud import user_crud
@@ -18,8 +18,8 @@ import logging
 import json
 logging.basicConfig(level=logging.INFO)
 
-# ALGORITHM: str = "HS256"
-# SECRET_KEY: str = "Secure Secret Key"
+ALGORITHM: str = "HS256"
+SECRET_KEY: str = "The access token new Secret key"
 
 fake_users_db: dict[str, dict[str, str]] = {
     "ameenalam": {
@@ -116,12 +116,47 @@ def access_token(form_data: Annotated[OAuth2PasswordRequestForm, Depends(OAuth2P
         raise HTTPException(status_code=400, detail="Incorrect Username")
     if verify_password(form_data.password, user.hashed_password) == False:
         raise HTTPException(status_code=400, detail="Incorrect Password")
-    
-    access_token_expires = timedelta(minutes=1)
 
+    # Access token (short-lived)
+    access_token_expires = timedelta(minutes=15)
     access_token = create_access_token(user.user_name, expires_delta=access_token_expires)
 
-    return {"access_token":access_token, "token_type": "bearer", "expires_in":access_token_expires.total_seconds()}
+    # Refresh token (long-lived)
+    refresh_token_expires = timedelta(days=7)
+    refresh_token = create_refresh_token(user.user_name, expires_delta=refresh_token_expires)
+
+
+
+    return {"access_token":access_token,
+            "refresh_token": refresh_token,
+            "token_type": "bearer", 
+            "expires_in":access_token_expires.total_seconds()
+            }
+
+@app.post("/refresh-token")
+def refresh_access_token(refresh_token: str):
+    """
+    Refresh the access token using the refresh token.
+    """
+    try:
+        # Verify the refresh token
+        payload = jwt.decode(refresh_token, SECRET_KEY, algorithms=[ALGORITHM])
+        username = payload.get("sub")
+        if username is None:
+            raise HTTPException(status_code=401, detail="Invalid refresh token")
+
+        # Generate a new access token
+        access_token_expires = timedelta(minutes=15)
+        new_access_token = create_access_token(username, expires_delta=access_token_expires)
+
+        return {
+            "access_token": new_access_token,
+            "token_type": "bearer",
+            "expires_in": access_token_expires.total_seconds()
+        }
+
+    except JWTError:
+        raise HTTPException(status_code=401, detail="Invalid refresh token")
 
 
 

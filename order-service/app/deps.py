@@ -21,9 +21,3 @@ def get_session():
 
 
 SessionDep = Annotated[Session, Depends(get_session)]
-
-def custom_json_serializer(obj):
-    """JSON serializer for objects not serializable by default json code"""
-    if isinstance(obj, datetime):
-        return obj.isoformat()
-    raise TypeError(f"Type {type(obj)} not serializable")
