@@ -3,7 +3,7 @@ from contextlib import asynccontextmanager
 from typing import Union, Optional, Annotated
 from app import settings
 from sqlmodel import Field, Session, SQLModel, create_engine, select, Sequence
-from fastapi import FastAPI, Depends
+from fastapi import FastAPI, Depends, HTTPException
 from typing import AsyncGenerator
 from aiokafka import AIOKafkaProducer, AIOKafkaConsumer
 import asyncio
@@ -11,7 +11,9 @@ import json
 
 class Todo(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
-    content: str = Field(index=True)
+    content: str = Field(index=True, min_length=3, max_length=54)
+    is_completed: bool = Field(default=False)
+
 
 
 # only needed for psycopg 3 - replace postgresql
@@ -86,7 +88,7 @@ def get_session():
 
 @app.get("/")
 def read_root():
-    return {"Hello": "PanaCloud"}
+    return {"Hello": "Todo App"}
 
 # Kafka Producer as a dependency
 async def get_kafka_producer():
@@ -99,18 +101,45 @@ async def get_kafka_producer():
 
 @app.post("/todos/", response_model=Todo)
 async def create_todo(todo: Todo, session: Annotated[Session, Depends(get_session)], producer: Annotated[AIOKafkaProducer, Depends(get_kafka_producer)])->Todo:
-        todo_dict = {field: getattr(todo, field) for field in todo.dict()}
-        todo_json = json.dumps(todo_dict).encode("utf-8")
-        print("todoJSON:", todo_json)
-        # Produce message
-        await producer.send_and_wait("todos", todo_json)
-        # session.add(todo)
-        # session.commit()
-        # session.refresh(todo)
+        session.add(todo)
+        session.commit()
+        session.refresh(todo)
         return todo
 
 
 @app.get("/todos/", response_model=list[Todo])
 def read_todos(session: Annotated[Session, Depends(get_session)]):
-        todos = session.exec(select(Todo)).all()
-        return todos
+    todos = session.exec(select(Todo)).all()
+    return todos
+
+@app.get("/todos/{id}",response_model=Todo)
+def read_single_todo(id: int, session: Annotated[Session, Depends(get_session)]):
+    todo = session.get(Todo, id)
+    if todo:
+        return todo
+    else:
+        raise HTTPException(status_code=404,detail="Task not found")
+    
+
+@app.put("todos/{id}",response_model=Todo)
+def update_todo(todo_id: int, todo: Todo, session: Annotated[Session, Depends(get_session)]):
+    existing_todo = session.get(Todo, todo_id)
+    if existing_todo:
+        existing_todo.content = todo.is_completed
+        existing_todo.is_completed = todo.is_completed
+        session.add(existing_todo)
+        session.commit()
+        session.refresh(existing_todo)
+    else:
+        HTTPException(code=404, detail="Task not found")
+
+@app.delete("todo/{id}")
+def delete_todo(id: int, session: Annotated[Session, Depends(get_session)]):
+    todo = session.get(Todo,id)
+    if todo:
+        session.delete(todo)
+        session.commit
+        return {"message":"Todo deleted successfully"}
+    else:
+        HTTPException(status_code=40,detail="Task not found")
+

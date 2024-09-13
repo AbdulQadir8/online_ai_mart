@@ -11,6 +11,7 @@ services:
       - ./todo:/code  # Sync local development directory with the container
     depends_on:
         - postgres_db
+        - postgres_test_db  # Test database for API
         - broker
     ports:
       - "8000:8000"  # Expose container port 8000 to host port 8000  
@@ -23,6 +24,7 @@ services:
       - ./microservice_02:/code  # Sync local development directory with the container
     depends_on:
         - postgres_db
+        - postgres_test_db  # Test database for API2
         - broker
     ports:
       - "8002:8000"  # Expose container port 8000 to host port 8000  
@@ -34,8 +36,9 @@ services:
     volumes:
       - ./product-service:/code  # Sync local development directory with the container
     depends_on:
-        - broker
+        - postgres_test_product_db  # Test database for product-service
         - postgres_product_db
+        - broker
     ports:
       - "8005:8000"  # Expose container port 8000 to host port 8000  
   inventory-service:
@@ -46,8 +49,9 @@ services:
     volumes:
       - ./inventory-service:/code  # Sync local development directory with the container
     depends_on:
-        - broker
         - postgres_inventory_db
+        - postgres_test_inventory_db  # Test database for inventory-service
+        - broker
     ports:
       - "8006:8000"  # Expose container port 8000 to host port 8000 
   order-service:
@@ -58,8 +62,9 @@ services:
     volumes:
       - ./order-service:/code  # Sync local development directory with the container
     depends_on:
-        - broker
         - postgres_order_db
+        - postgres_test_order_db  # Test database for order-service
+        - broker
     ports:
       - "8007:8000"  # Expose container port 8000 to host port 8007
   payment-service:
@@ -70,8 +75,9 @@ services:
     volumes:
       - ./payment-service:/code  # Sync local development directory with the container
     depends_on:
-        - broker
         - postgres_payment_db
+        - postgres_test_payment_db  # Test database for payment-service
+        - broker
     ports:
       - "8008:8000"  # Expose container port 8000 to host port 8008
   user-service:
@@ -82,8 +88,9 @@ services:
     volumes:
       - ./user-service:/code # Sync local development directory with the container
     depends_on:
-      - broker
       - postgres_user_db
+      - postgres_test_user_db  # Test database for user-service
+      - broker
     ports:
       - "8009:8000"  # Expose container port 8000 to host port 8009
   notification-service:
@@ -94,8 +101,9 @@ services:
     volumes:
       - ./notification-service:/code # Sync local development directory with the container
     depends_on:
-      - broker
       - postgres_notification_db
+      - postgres_test_notification_db  # Test database for notification-service
+      - broker
     ports:
       - "8010:8000"  # Expose container port 8000 to host port 8009
   postgres_db:
@@ -188,6 +196,98 @@ services:
       - '5486:5432'
     volumes:
       - postgres_notification_db:/var/lib/postgresql/data
+  # Test Databases
+  postgres_test_db:
+    image: postgres:latest
+    restart: always
+    container_name: PostgresTestCont
+    environment:
+        - POSTGRES_USER=usamaali
+        - POSTGRES_PASSWORD=my_password
+        - POSTGRES_DB=test_mydatabase
+    ports:
+        - '5490:5432'
+    volumes:
+        - postgres_test_db:/var/lib/postgresql/data
+
+  postgres_test_product_db:
+    image: postgres:latest
+    restart: always
+    container_name: PostgresProductTestCont
+    environment:
+        - POSTGRES_USER=usamaali
+        - POSTGRES_PASSWORD=my_password
+        - POSTGRES_DB=test_product_database
+    ports:
+        - '5491:5432'
+    volumes:
+        - postgres_test_product_db:/var/lib/postgresql/data
+
+  postgres_test_inventory_db:
+    image: postgres:latest
+    restart: always
+    container_name: PostgresInventoryTestCont
+    environment:
+        - POSTGRES_USER=usamaali
+        - POSTGRES_PASSWORD=my_password
+        - POSTGRES_DB=test_inventory_database
+    ports:
+        - '5492:5432'
+    volumes:
+        - postgres_test_inventory_db:/var/lib/postgresql/data
+
+  postgres_test_order_db:
+    image: postgres:latest
+    restart: always
+    container_name: PostgresOrderTestCont
+    environment:
+        - POSTGRES_USER=usamaali
+        - POSTGRES_PASSWORD=my_password
+        - POSTGRES_DB=test_order_database
+    ports:
+        - '5493:5432'
+    volumes:
+        - postgres_test_order_db:/var/lib/postgresql/data
+
+  postgres_test_payment_db:
+    image: postgres:latest
+    restart: always
+    container_name: PostgresPaymentTestCont
+    environment:
+        - POSTGRES_USER=usamaali
+        - POSTGRES_PASSWORD=my_password
+        - POSTGRES_DB=test_payment_database
+    ports:
+        - '5494:5432'
+    volumes:
+        - postgres_test_payment_db:/var/lib/postgresql/data
+
+  postgres_test_user_db:
+    image: postgres:latest
+    restart: always
+    container_name: PostgresUserTestCont
+    environment:
+        - POSTGRES_USER=usamaali
+        - POSTGRES_PASSWORD=my_password
+        - POSTGRES_DB=test_user_database
+    ports:
+        - '5495:5432'
+    volumes:
+        - postgres_test_user_db:/var/lib/postgresql/data
+
+  postgres_test_notification_db:
+    image: postgres:latest
+    restart: always
+    container_name: PostgresNotificationTestCont
+    environment:
+        - POSTGRES_USER=usamaali
+        - POSTGRES_PASSWORD=my_password
+        - POSTGRES_DB=test_notification_database
+    ports:
+        - '5496:5432'
+    volumes:
+        - postgres_test_notification_db:/var/lib/postgresql/data
+
 
   broker:
     image: apache/kafka:3.7.0
@@ -237,6 +337,20 @@ volumes:
   postgres_user_db:
     driver: local
   postgres_notification_db:
+    driver: local
+  postgres_test_db:
+    driver: local
+  postgres_test_product_db:
+    driver: local
+  postgres_test_inventory_db:
+    driver: local
+  postgres_test_order_db:
+    driver: local
+  postgres_test_payment_db:
+    driver: local
+  postgres_test_user_db:
+    driver: local
+  postgres_test_notification_db:
     driver: local
     
 networks:
