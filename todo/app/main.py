@@ -67,7 +67,7 @@ async def consume_messages(topic, bootstrap_servers):
 async def lifespan(app: FastAPI)-> AsyncGenerator[None, None]:
     print("Creating tables..")
     # loop.run_until_complete(consume_messages('todos', 'broker:19092'))
-    task = asyncio.create_task(consume_messages('todos', 'broker:19092'))
+    # task = asyncio.create_task(consume_messages('todos', 'broker:19092'))
     create_db_and_tables()
     yield
 
@@ -112,33 +112,34 @@ def read_todos(session: Annotated[Session, Depends(get_session)]):
     todos = session.exec(select(Todo)).all()
     return todos
 
-@app.get("/todos/{id}",response_model=Todo)
-def read_single_todo(id: int, session: Annotated[Session, Depends(get_session)]):
-    todo = session.get(Todo, id)
+@app.get("/todos/{todo_id}",response_model=Todo)
+def read_single_todo(todo_id: int, session: Annotated[Session, Depends(get_session)]):
+    todo = session.exec(select(Todo).where(Todo.id == todo_id)).first()
     if todo:
         return todo
     else:
         raise HTTPException(status_code=404,detail="Task not found")
     
 
-@app.put("todos/{id}",response_model=Todo)
+@app.put("/todos/{todo_id}")
 def update_todo(todo_id: int, todo: Todo, session: Annotated[Session, Depends(get_session)]):
     existing_todo = session.get(Todo, todo_id)
     if existing_todo:
-        existing_todo.content = todo.is_completed
+        existing_todo.content = todo.content
         existing_todo.is_completed = todo.is_completed
         session.add(existing_todo)
         session.commit()
         session.refresh(existing_todo)
+        return existing_todo
     else:
         HTTPException(code=404, detail="Task not found")
 
-@app.delete("todo/{id}")
-def delete_todo(id: int, session: Annotated[Session, Depends(get_session)]):
-    todo = session.get(Todo,id)
+@app.delete("/todos/{todo_id}")
+def delete_todo(todo_id: int, session: Annotated[Session, Depends(get_session)]):
+    todo = session.exec(select(Todo).where(Todo.id == todo_id)).first()
     if todo:
         session.delete(todo)
-        session.commit
+        session.commit()
         return {"message":"Todo deleted successfully"}
     else:
         HTTPException(status_code=40,detail="Task not found")
