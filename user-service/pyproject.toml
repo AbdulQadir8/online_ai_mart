@@ -6,7 +6,7 @@ authors = ["Zia Khan <zia@panacloud.com>"]
 readme = "README.md"
 
 [tool.poetry.dependencies]
-python = "^3.11"
+python = "^3.12.5"
 uvicorn = {extras = ["standard"], version = "^0.27.1"}
 sqlmodel = "^0.0.16"
 psycopg = {extras = ["binary"], version = "^3.1.18"}
@@ -31,6 +31,7 @@ sentry-sdk = {extras = ["fastapi"], version = "^1.42.0"}
 aiokafka = "^0.10.0"
 psycopg2 = "^2.9.9"
 stripe = "^10.6.0"
+fastapi = "^0.115.0"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.1.1"
