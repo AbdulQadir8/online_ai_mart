@@ -17,6 +17,9 @@ def random_password() -> str:
 def random_email() -> str:
     return f"{random_lower_string()}{random_number()}@gmail.com"
 
+def random_user_name() -> str:
+    return f"{random_lower_string()}_09"
+
 
 def get_superuser_token_headers(client: TestClient) -> dict[str, str]:
     login_data = {"username": settings.FIRST_SUPERUSER,

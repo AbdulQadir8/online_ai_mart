@@ -14,7 +14,7 @@ from app.models.user_model import User, UserCreate, UserRole
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-max_tries = 60 * 5 # 5 minutes
+max_tries = 60 * 1# 5 minutes
 wait_seconds = 1
 
 
@@ -44,6 +44,7 @@ def init_test_db(db_engine: Engine) -> None:
             ).first()
             if not user:
                 user_in = UserCreate(
+                    user_name="Usama Ali",
                     email=settings.FIRST_SUPERUSER,
                     password=settings.FIRST_SUPERUSER_PASWORD,
                     is_superuser=True,
