@@ -247,15 +247,14 @@ async def password_reset_request(data: PasswordResetRequest,
     
     # Generate a password reset token
     reset_token = create_reset_token(user.email)
-    # Simulate sending the reset email (you should integrate with an email service)
 
+    # Simulate sending the reset email (you should integrate with an email service)
     reset_token = create_reset_token(user.email)
-    frontend_reset_url = "http://127.0.0.1:8009/password-reset"
-    reset_link = f"{frontend_reset_url}?token={reset_token}"
+    password_reset_url = "http://127.0.0.1:8009/password-reset"
+    reset_link = f"{password_reset_url}?token={reset_token}"
     message = f"Password reset link: {reset_link} Note: Ignore this message if you do not request for password reset"
 
     # Send the email with the reset link
-    # send_reset_email(user.email, reset_link
     data_dict = {"user_id":user.id, 
                  "email":user.email,
                  "message":message, 
@@ -265,7 +264,7 @@ async def password_reset_request(data: PasswordResetRequest,
     await producer.send_and_wait("password_reset_events",data_json)
     
     print(f"Password reset token: {reset_token}")
-    return {"msg": "Password reset link sent (check your email)"}
+    return Message(message="Password reset link sent")
 
 
 @app.post("/password-reset")

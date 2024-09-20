@@ -1,4 +1,3 @@
-version: '3.8'
 name: template01
 services:
   api:
@@ -14,7 +13,7 @@ services:
         - postgres_test_db  # Test database for API
         - broker
     ports:
-      - "8000:8000"  # Expose container port 8000 to host port 8000  
+      - "8002:8000"  # Expose container port 8000 to host port 8000  
   api2:
     image: ms2-mart-api
     build:
@@ -27,7 +26,7 @@ services:
         - postgres_test_db  # Test database for API2
         - broker
     ports:
-      - "8002:8000"  # Expose container port 8000 to host port 8000  
+      - "8003:8000"  # Expose container port 8000 to host port 8000  
   product-service:
     image: product-mart-api
     build:
@@ -115,7 +114,7 @@ services:
         - POSTGRES_PASSWORD=my_password
         - POSTGRES_DB=mydatabase
     ports:
-        - '5480:5432'
+        - '5460:5432'
     volumes:
         - postgres_db:/var/lib/postgresql/data
 
@@ -129,7 +128,7 @@ services:
         - POSTGRES_PASSWORD=my_password
         - POSTGRES_DB=product_database
     ports:
-        - '5481:5432'
+        - '5461:5432'
     volumes:
         - postgres_product_db:/var/lib/postgresql/data
  
@@ -142,7 +141,7 @@ services:
         - POSTGRES_PASSWORD=my_password
         - POSTGRES_DB=inventory_database
     ports:
-        - '5482:5432'
+        - '5462:5432'
     volumes:
         - postgres_inventory_db:/var/lib/postgresql/data
  
@@ -155,7 +154,7 @@ services:
         - POSTGRES_PASSWORD=my_password
         - POSTGRES_DB=order_database
     ports:
-        - '5483:5432'
+        - '5463:5432'
     volumes:
         - postgres_order_db:/var/lib/postgresql/data
 
@@ -168,7 +167,7 @@ services:
       - POSTGRES_PASSWORD=my_password
       - POSTGRES_DB=payment_database
     ports:
-      - '5484:5432'
+      - '5464:5432'
     volumes:
       - postgres_payment_db:/var/lib/postgresql/data
 
@@ -181,7 +180,7 @@ services:
       - POSTGRES_PASSWORD=my_password
       - POSTGRES_DB=user_database
     ports:
-      - '5485:5432'
+      - '5465:5432'
     volumes:
       - postgres_user_db:/var/lib/postgresql/data
   postgres_notification_db:
@@ -193,7 +192,7 @@ services:
       - POSTGRES_PASSWORD=my_password
       - POSTGRES_DB=notification_database
     ports:
-      - '5486:5432'
+      - '5466:5432'
     volumes:
       - postgres_notification_db:/var/lib/postgresql/data
   # Test Databases
@@ -206,7 +205,7 @@ services:
         - POSTGRES_PASSWORD=my_password
         - POSTGRES_DB=test_mydatabase
     ports:
-        - '5490:5432'
+        - '5470:5432'
     volumes:
         - postgres_test_db:/var/lib/postgresql/data
 
@@ -219,7 +218,7 @@ services:
         - POSTGRES_PASSWORD=my_password
         - POSTGRES_DB=test_product_database
     ports:
-        - '5491:5432'
+        - '5471:5432'
     volumes:
         - postgres_test_product_db:/var/lib/postgresql/data
 
@@ -232,7 +231,7 @@ services:
         - POSTGRES_PASSWORD=my_password
         - POSTGRES_DB=test_inventory_database
     ports:
-        - '5492:5432'
+        - '5472:5432'
     volumes:
         - postgres_test_inventory_db:/var/lib/postgresql/data
 
@@ -245,7 +244,7 @@ services:
         - POSTGRES_PASSWORD=my_password
         - POSTGRES_DB=test_order_database
     ports:
-        - '5493:5432'
+        - '5473:5432'
     volumes:
         - postgres_test_order_db:/var/lib/postgresql/data
 
@@ -258,7 +257,7 @@ services:
         - POSTGRES_PASSWORD=my_password
         - POSTGRES_DB=test_payment_database
     ports:
-        - '5494:5432'
+        - '5474:5432'
     volumes:
         - postgres_test_payment_db:/var/lib/postgresql/data
 
@@ -271,7 +270,7 @@ services:
         - POSTGRES_PASSWORD=my_password
         - POSTGRES_DB=test_user_database
     ports:
-        - '5495:5432'
+        - '5475:5432'
     volumes:
         - postgres_test_user_db:/var/lib/postgresql/data
 
@@ -284,7 +283,7 @@ services:
         - POSTGRES_PASSWORD=my_password
         - POSTGRES_DB=test_notification_database
     ports:
-        - '5496:5432'
+        - '5476:5432'
     volumes:
         - postgres_test_notification_db:/var/lib/postgresql/data
 

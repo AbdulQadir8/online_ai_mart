@@ -2,7 +2,6 @@ from sqlmodel import select, Session
 from app.models.user_model import  User, UserCreate, UserUpdate
 from app.utils import get_hashed_password, verify_password
 from typing import Any
-from app.deps import SessionDep
 
 def get_user_by_email(*,session: Session, email: str):
        statement = select(User).where(User.email == email)
@@ -17,7 +16,7 @@ def authenticate(*, session: Session, email: str, password: str) -> User | None:
             return None
       return db_user
 
-def create_user(*, session: SessionDep, user_create: UserCreate) -> User:
+def create_user(*, session: Session, user_create: UserCreate) -> User:
     db_obj = User.model_validate(
         user_create, update={"hashed_password": get_hashed_password(user_create.password)}
     )
@@ -27,7 +26,7 @@ def create_user(*, session: SessionDep, user_create: UserCreate) -> User:
     return db_obj
 
 
-def update_user(*, session: SessionDep, db_user: User, user_in: UserUpdate) -> Any:
+def update_user(*, session: Session, db_user: User, user_in: UserUpdate) -> Any:
       user_data = user_in.model_dump(exclude_unset=True)
       extra_data= {}
       if "password" in user_data:
