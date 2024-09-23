@@ -25,7 +25,7 @@ def get_superuser_token_headers(client: TestClient) -> dict[str, str]:
     login_data = {"username": settings.FIRST_SUPERUSER,
                   'password': settings.FIRST_SUPERUSER_PASWORD
                   }
-    r = client.post(f"http://127.0.0.1:8009/login/access-token", data=login_data)
+    r = client.post(f"http://user-service:8000/login", data=login_data)
     tokens =r.json()
     a_token = tokens["access_token"]
     headers = {"Authorization":f"Bearer {a_token}"}

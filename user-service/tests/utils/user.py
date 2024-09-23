@@ -11,7 +11,7 @@ def user_authentication_headers(
 ) -> dict[str,str]:
     data = {"username":email, "password": password}
 
-    r = client.post(f"http://127.0.0.1:8009/login/access-token",data=data)
+    r = client.post(f"http://user-service:8000/login",data=data)
     response = r.json()
     auth_token = response["access_token"]
     headers = {"Authorization":f"Bearer {auth_token}"}

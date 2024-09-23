@@ -82,8 +82,7 @@ def test_update_user(db: Session) -> None:
     user_in = UserCreate(user_name=username,email=email, password=password)
     user = create_user(session=db, user_create=user_in)
     new_password = random_password()
-    hashed_password = get_hashed_password(new_password)
-    user_in_update = UserUpdate(password=hashed_password)
+    user_in_update = UserUpdate(password=new_password)
     if user.id is not None:
         update_user(session=db, db_user=user, user_in=user_in_update)
     user_2 = db.get(User, user.id)

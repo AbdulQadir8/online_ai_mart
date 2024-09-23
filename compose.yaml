@@ -35,8 +35,8 @@ services:
     volumes:
       - ./product-service:/code  # Sync local development directory with the container
     depends_on:
-        - postgres_test_product_db  # Test database for product-service
         - postgres_product_db
+        - postgres_test_db  # Test database for product-service
         - broker
     ports:
       - "8005:8000"  # Expose container port 8000 to host port 8000  
@@ -49,7 +49,7 @@ services:
       - ./inventory-service:/code  # Sync local development directory with the container
     depends_on:
         - postgres_inventory_db
-        - postgres_test_inventory_db  # Test database for inventory-service
+        - postgres_test_db  # Test database for inventory-service
         - broker
     ports:
       - "8006:8000"  # Expose container port 8000 to host port 8000 
@@ -62,7 +62,7 @@ services:
       - ./order-service:/code  # Sync local development directory with the container
     depends_on:
         - postgres_order_db
-        - postgres_test_order_db  # Test database for order-service
+        - postgres_test_db  # Test database for order-service
         - broker
     ports:
       - "8007:8000"  # Expose container port 8000 to host port 8007
@@ -75,7 +75,7 @@ services:
       - ./payment-service:/code  # Sync local development directory with the container
     depends_on:
         - postgres_payment_db
-        - postgres_test_payment_db  # Test database for payment-service
+        - postgres_test_db  # Test database for payment-service
         - broker
     ports:
       - "8008:8000"  # Expose container port 8000 to host port 8008
@@ -88,7 +88,7 @@ services:
       - ./user-service:/code # Sync local development directory with the container
     depends_on:
       - postgres_user_db
-      - postgres_test_user_db  # Test database for user-service
+      - postgres_test_db  # Test database for user-service
       - broker
     ports:
       - "8009:8000"  # Expose container port 8000 to host port 8009
@@ -101,7 +101,7 @@ services:
       - ./notification-service:/code # Sync local development directory with the container
     depends_on:
       - postgres_notification_db
-      - postgres_test_notification_db  # Test database for notification-service
+      - postgres_test_db  # Test database for notification-service
       - broker
     ports:
       - "8010:8000"  # Expose container port 8000 to host port 8009
@@ -209,85 +209,7 @@ services:
     volumes:
         - postgres_test_db:/var/lib/postgresql/data
 
-  postgres_test_product_db:
-    image: postgres:latest
-    restart: always
-    container_name: PostgresProductTestCont
-    environment:
-        - POSTGRES_USER=usamaali
-        - POSTGRES_PASSWORD=my_password
-        - POSTGRES_DB=test_product_database
-    ports:
-        - '5471:5432'
-    volumes:
-        - postgres_test_product_db:/var/lib/postgresql/data
-
-  postgres_test_inventory_db:
-    image: postgres:latest
-    restart: always
-    container_name: PostgresInventoryTestCont
-    environment:
-        - POSTGRES_USER=usamaali
-        - POSTGRES_PASSWORD=my_password
-        - POSTGRES_DB=test_inventory_database
-    ports:
-        - '5472:5432'
-    volumes:
-        - postgres_test_inventory_db:/var/lib/postgresql/data
-
-  postgres_test_order_db:
-    image: postgres:latest
-    restart: always
-    container_name: PostgresOrderTestCont
-    environment:
-        - POSTGRES_USER=usamaali
-        - POSTGRES_PASSWORD=my_password
-        - POSTGRES_DB=test_order_database
-    ports:
-        - '5473:5432'
-    volumes:
-        - postgres_test_order_db:/var/lib/postgresql/data
-
-  postgres_test_payment_db:
-    image: postgres:latest
-    restart: always
-    container_name: PostgresPaymentTestCont
-    environment:
-        - POSTGRES_USER=usamaali
-        - POSTGRES_PASSWORD=my_password
-        - POSTGRES_DB=test_payment_database
-    ports:
-        - '5474:5432'
-    volumes:
-        - postgres_test_payment_db:/var/lib/postgresql/data
-
-  postgres_test_user_db:
-    image: postgres:latest
-    restart: always
-    container_name: PostgresUserTestCont
-    environment:
-        - POSTGRES_USER=usamaali
-        - POSTGRES_PASSWORD=my_password
-        - POSTGRES_DB=test_user_database
-    ports:
-        - '5475:5432'
-    volumes:
-        - postgres_test_user_db:/var/lib/postgresql/data
-
-  postgres_test_notification_db:
-    image: postgres:latest
-    restart: always
-    container_name: PostgresNotificationTestCont
-    environment:
-        - POSTGRES_USER=usamaali
-        - POSTGRES_PASSWORD=my_password
-        - POSTGRES_DB=test_notification_database
-    ports:
-        - '5476:5432'
-    volumes:
-        - postgres_test_notification_db:/var/lib/postgresql/data
-
-
+ 
   broker:
     image: apache/kafka:3.7.0
     hostname: broker
@@ -339,18 +261,7 @@ volumes:
     driver: local
   postgres_test_db:
     driver: local
-  postgres_test_product_db:
-    driver: local
-  postgres_test_inventory_db:
-    driver: local
-  postgres_test_order_db:
-    driver: local
-  postgres_test_payment_db:
-    driver: local
-  postgres_test_user_db:
-    driver: local
-  postgres_test_notification_db:
-    driver: local
+
     
 networks:
   default:

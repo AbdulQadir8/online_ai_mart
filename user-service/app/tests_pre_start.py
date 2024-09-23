@@ -44,7 +44,7 @@ def init_test_db(db_engine: Engine) -> None:
             ).first()
             if not user:
                 user_in = UserCreate(
-                    user_name="Usama Ali",
+                    user_name="usama123",
                     email=settings.FIRST_SUPERUSER,
                     password=settings.FIRST_SUPERUSER_PASWORD,
                     is_superuser=True,
