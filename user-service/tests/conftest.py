@@ -15,7 +15,7 @@ from app.main import app
 from tests.utils.user import authentication_token_from_email
 from tests.utils.utils import get_superuser_token_headers
 
-@pytest.fixture(scope="session",autouse=True)
+@pytest.fixture(scope="module",autouse=True)
 def db() -> Generator[Session, None, None]:
     init_test_db(test_engine)
     with Session(test_engine) as session:

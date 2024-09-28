@@ -21,20 +21,6 @@ logging.basicConfig(level=logging.INFO)
 ALGORITHM: str = "HS256"
 SECRET_KEY: str = "The access token new Secret key"
 
-fake_users_db: dict[str, dict[str, str]] = {
-    "ameenalam": {
-        "username": "ameenalam",
-        "full_name": "Ameen Alam",
-        "email": "ameenalam@example.com",
-        "password": "ameenalamsecret",
-    },
-    "mjunaid": {
-        "username": "mjunaid",
-        "full_name": "Muhammad Junaid",
-        "email": "mjunaid@example.com",
-        "password": "mjunaidsecret",
-    },
-}
 
 def create_db_and_tables()->None:
     SQLModel.metadata.create_all(engine)
@@ -64,7 +50,7 @@ app = FastAPI(lifespan=lifespan,
 def read_root():
     return {"App1": "User Service1"}
 
-@app.get("/users",dependencies=[Depends(get_current_active_superuser)],response_model=UserPublic)
+@app.get("/users",dependencies=[Depends(get_current_active_superuser)])
 def ge_all_users(session: SessionDep, skip: int= 0, limit: int= 100) -> Any:
     """
     Retrieve users
@@ -219,22 +205,22 @@ def read_user_by_id(user_id: int, session: SessionDep, current_user: CurrentUser
 
 
 
-# @app.patch("/me/password", response_model=Message)
-# def update_password_me(*, session: SessionDep, body: UpdatePassword, current_user: CurrentUser)-> Any:
-#     """
-#     Update own password.
-#     """
-#     if not verify_password(body.current_password, current_user.hashed_password):
-#         raise HTTPException(status_code=400, detail="Incorrect password")
-#     if body.current_password == body.new_password:
-#         raise HTTPException(
-#             status_code=400, detail="New Password cannot be the same as the current one"
-#         )
-#     hashed_password = get_hashed_password(body.new_password)
-#     current_user.hashed_password = hashed_password
-#     session.add(current_user)
-#     session.commit()
-#     return Message(message="Password update successfully")
+@app.patch("/me/password", response_model=Message)
+def update_password_me(*, session: SessionDep, body: UpdatePassword, current_user: CurrentUser)-> Any:
+    """
+    Update own password.
+    """
+    if not verify_password(body.current_password, current_user.hashed_password):
+        raise HTTPException(status_code=400, detail="Incorrect password")
+    if body.current_password == body.new_password:
+        raise HTTPException(
+            status_code=400, detail="New Password cannot be the same as the current one"
+        )
+    hashed_password = get_hashed_password(body.new_password)
+    current_user.hashed_password = hashed_password
+    session.add(current_user)
+    session.commit()
+    return Message(message="Password updated successfully")
 
 
 @app.post("/password-reset-request/")

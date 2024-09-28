@@ -23,7 +23,7 @@ def random_user_name() -> str:
 
 def get_superuser_token_headers(client: TestClient) -> dict[str, str]:
     login_data = {"username": settings.FIRST_SUPERUSER,
-                  'password': settings.FIRST_SUPERUSER_PASWORD
+                  "password": settings.FIRST_SUPERUSER_PASWORD
                   }
     r = client.post(f"http://user-service:8000/login", data=login_data)
     tokens =r.json()
