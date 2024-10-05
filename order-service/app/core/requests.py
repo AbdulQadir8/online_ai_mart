@@ -1,6 +1,6 @@
 from fastapi import HTTPException, Depends
 from requests import get, post
-from app.utils import load_error_json
+from app.core.utils import load_error_json
 from fastapi.security import OAuth2PasswordBearer
 from typing import Annotated
 

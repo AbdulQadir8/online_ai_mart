@@ -224,26 +224,26 @@ def test_update_password_me_same_password_error(client: TestClient, db: Session,
     updated_user = r.json()
     assert updated_user["detail"] == "New Password cannot be the same as the current one" 
 
-# def test_register_user(client: TestClient, db: Session) -> None:
-#     email = random_email()
-#     full_name = random_user_name()
-#     password = random_password()
-#     data = {"email": email, "password": password, "full_name": full_name}
-#     r = client.post(
-#         "http://user-service:8000/sign_up",
-#         json=data,
-#     )
-#     assert r.status_code == 200
-#     created_user = r.json()
-#     assert created_user["email"] == email
-#     assert created_user["full_name"] == full_name
+def test_register_user(client: TestClient, db: Session) -> None:
+    email = random_email()
+    user_name = random_user_name()
+    password = random_password()
+    data = {"email": email, "password": password, "user_name": user_name}
+    r = client.post(
+        "http://user-service:8000/sign_up",
+        json=data,
+    )
+    assert r.status_code == 200
+    created_user = r.json()
+    assert created_user["email"] == email
+    assert created_user["user_name"] == user_name
 
-#     user_query = select(User).where(User.email == email)
-#     user_db = db.exec(user_query).first()
-#     assert user_db
-#     assert user_db.email == email
-#     assert user_db.full_name == full_name
-#     assert verify_password(password, user_db.hashed_password)
+    user_query = select(User).where(User.email == email)
+    user_db = db.exec(user_query).first()
+    assert user_db
+    assert user_db.email == email
+    assert user_db.user_name == user_name
+    assert verify_password(password, user_db.hashed_password)
 
 
 def test_register_user_already_exists_error(client: TestClient) ->None:
@@ -310,3 +310,75 @@ def test_update_user_email_exists(
     )
     assert r.status_code == 409
     assert r.json()["detail"] == "User already exists with this email"
+
+
+def test_delete_user_superuser(client: TestClient, db: Session, superuser_token_headers: dict[str,str]) ->None:
+    user_name = random_user_name()
+    email = random_email()
+    password = random_password()
+    user_in = UserCreate(user_name=user_name,email=email,password=password)
+    user = create_user(session=db,user_create=user_in)
+    user_id = user.id
+    r = client.delete(f"http://user-service:8000/{user_id}",
+                  headers=superuser_token_headers)
+    assert r.status_code == 200
+    assert r.json()["message"] == "User deleted Successfully"
+
+    query = select(User).where(User.email == email)
+    db_user = db.exec(query).first()
+    assert db_user is None
+
+def test_delete_user_current_user(client: TestClient, db: Session):
+    user_name = random_user_name()
+    email = random_email()
+    password = random_password()
+    user_in = UserCreate(user_name=user_name,email=email,password=password)
+    user = create_user(session=db,user_create=user_in)
+    user_id = user.id
+    login_data = {
+        "username":user_name,
+        "password":password
+    }
+    r = client.post("http://user-service:8000/login",
+                data=login_data)
+    assert r.status_code == 200
+    tokens = r.json()
+    a_token = tokens["access_token"]
+    headers = {
+        "Authorization":f"Bearer {a_token}"
+    }
+
+    response = client.delete(f"http://user-service:8000/{user_id}",
+                  headers=headers)
+    deleted_user = response.json()
+    assert response.status_code == 200
+    assert deleted_user["message"] == "User deleted Successfully"
+
+
+def test_delete_user_not_found(client: TestClient, superuser_token_headers: dict[str, str]) ->None:
+    r = client.delete(f"http://user-service:8000/{99999}",
+                  headers=superuser_token_headers)
+    assert r.status_code == 404
+    assert r.json()["detail"] == "User not found"
+
+def test_delete_user_current_superuser_error(client: TestClient, db: Session, superuser_token_headers: dict[str,str]) ->None:
+    superuser = get_user_by_email(session=db,email=settings.FIRST_SUPERUSER)
+    assert superuser
+    user_id = superuser.id
+    r = client.delete(f"http://user-service:8000/{user_id}",
+                  headers=superuser_token_headers)
+    assert r.status_code == 403
+    assert r.json()["detail"] == "Super users are not allowed to delete themselves"
+
+
+def test_delete_without_privileges_error(client: TestClient, db: Session,normal_user_token_headers: dict[str,str]):
+    user_name = random_user_name()
+    email = random_email()
+    password = random_password()
+    user_in = UserCreate(user_name=user_name,email=email,password=password)
+    user = create_user(session=db, user_create=user_in)
+    user_id = user.id
+    r = client.delete(f"http://user-service:8000/{user_id}",
+                             headers=normal_user_token_headers)
+    assert r.status_code == 403
+    assert r.json()["detail"] == "The user doesn't have enough privileges"

@@ -1,4 +1,3 @@
-from fastapi import HTTPException
 from sqlmodel import Session, select
 from app.models.order_model import Order, OrderItem
 import logging 
@@ -11,20 +10,25 @@ def add_new_order(order: Order, session: Session):
     session.add(order)
     session.commit()
     session.refresh(order)
+    return order
 
 
 # Get all orders from database
 def get_all_orders(session: Session):
     logging.info("Geting all orders from database")
     orders = session.exec(select(Order)).all()
+    if not orders:
+        return None
     return orders
 
 # Get order by id
 def get_single_order(order_id: int, session: Session):
     logging.info("Geting order by id")
-    order = session.get(Order,order_id).one_or_none()
-    if order is None:
-        raise HTTPException(status_code=404, detail=f"Order not found with id:{order_id}")
+    statement = select(Order).where(Order.id == order_id)
+    result = session.exec(statement)
+    order = result.one_or_none()
+    if not order:
+        return None
     return order
 
 
@@ -33,7 +37,7 @@ def delete_single_order(order_id: int, session: Session):
     logging.info("Deleting order by id")
     order = session.exec(select(Order).where(Order.id == order_id)).one_or_none()
     if order is None:
-        raise HTTPException(status_code=404,detail=f"Order not found with id:{order_id}")
+        return None
     session.delete(order)
     session.commit()
     return {"message":"Order deleted successfully"}

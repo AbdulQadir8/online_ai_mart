@@ -30,7 +30,7 @@ class UserCreate(UserBase):
 class UserRegister(SQLModel):
     email: str
     password: str
-    full_name: str | None = None
+    user_name: str | None = None
 
 
 

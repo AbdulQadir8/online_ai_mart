@@ -1,21 +1,20 @@
 # main.py
 from contextlib import asynccontextmanager
-from typing import Union, Optional, Annotated
-from app import settings
-from sqlmodel import Field, Session, SQLModel, create_engine, select, Sequence
+from typing import Annotated
+from sqlmodel import Field, Session, SQLModel,select
 
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from typing import AsyncGenerator
 from aiokafka import AIOKafkaProducer
-from app.db_engine import engine
+from app.core.db_engine import engine
 import asyncio
 import json
 from app.deps import get_kafka_producer, get_session
 from app.models.order_model import CreateOrder, Order, OrderItem, UpdateOrder, UpdateItem, OrderItem
+from app.crud.order_crud import get_single_order
 from app.consumers.order_consumer import consume_messages
-from app.crud.order_crud import get_single_order, add_new_order
-from app.requests import get_current_user, login_for_access_token
+from app.core.requests import get_current_user, login_for_access_token
 import logging
 logging.basicConfig(level=logging.INFO)
 
@@ -67,7 +66,6 @@ def get_login_for_access_token(form_data: Annotated[OAuth2PasswordRequestForm, D
 
 @app.post("/order/")
 async def create_order(order_data: CreateOrder,
-                       session: Annotated[Session, Depends(get_session)],
                        producer: Annotated[AIOKafkaProducer, Depends(get_kafka_producer)],
                        user_data: Annotated[str | None, Depends(get_current_user)]):
     """ Create a new inventory item and send it to Kafka"""
@@ -98,9 +96,7 @@ def read_orders(session: Annotated[Session, Depends(get_session)],
 def get_order_by_id(order_id:int, 
                     session: Annotated[Session, Depends(get_session)],
                     user_data: Annotated[str | None, Depends(get_current_user)]):
-    statement = select(Order).where(Order.id == order_id)
-    result = session.exec(statement)
-    order = result.one_or_none()
+    order = get_order_by_id(order_id=order_id,session=session)
     if order is None:
         raise HTTPException(status_code=404, detail="User Not Found")
     if order.user_id != user_data["id"]:
@@ -111,15 +107,11 @@ def get_order_by_id(order_id:int,
 def get_order_and_item_by_id(order_id:int, 
                              session: Annotated[Session, Depends(get_session)],
                              user_data: Annotated[str | None, Depends(get_current_user)]):
-    statement = select(Order).where(Order.id == order_id)
-    result = session.exec(statement)
-    order = result.one_or_none()
+    order = get_order_by_id(order_id=order_id,session=session)
     if order is None:
         raise HTTPException(status_code=404, detail="User Not Found")
     if order.user_id != user_data["id"]:
         raise HTTPException(status_code=403,detail="User doesn't  have enough privileges")
-    return order
-
     return {"Order":order,
             "OrderItem":order.items}
 
@@ -127,15 +119,11 @@ def get_order_and_item_by_id(order_id:int,
 def orderitem_by_orderid(order_id:int, 
                          session: Annotated[Session, Depends(get_session)],
                          user_data: Annotated[str | None, Depends(get_current_user)]):
-    statement = select(Order).where(Order.id == order_id)
-    result = session.exec(statement)
-    order = result.one_or_none()
+    order = get_order_by_id(order_id=order_id,session=session)
     if order is None:
         raise HTTPException(status_code=404, detail="User Not Found")
     if order.user_id != user_data["id"]:
         raise HTTPException(status_code=403,detail="User doesn't  have enough privileges")
-    return order
-
     return {"OrderItem":order.items}
 
 @app.patch("/order_update/{order_id}")
@@ -143,33 +131,29 @@ def update_order(order_id: int,
                  order_in: UpdateOrder, 
                  session: Annotated[Session, Depends(get_session)],
                  user_data: Annotated[str | None, Depends(get_current_user)]):
-     order_to_update = session.get(Order, order_id)
-     if order is None:
-        raise HTTPException(status_code=404, detail="User Not Found")
-     if order.user_id != user_data["id"]:
-        raise HTTPException(status_code=403,detail="User doesn't  have enough privileges")
-     return order
+    order_to_update = get_order_by_id(order_id=order_id,session=session)
+    if order_to_update is None:
+       raise HTTPException(status_code=404, detail="User Not Found")
+    if order_to_update.user_id != user_data["id"]:
+       raise HTTPException(status_code=403,detail="User doesn't  have enough privileges")
 
-     order_data = order_in.model_dump(exclude_unset=True)
-     order = order_to_update.sqlmodel_update(order_data)
-     session.add(order)
-     session.commit()
-     session.refresh(order)
-     return {"Updated Order":order}
+    order_data = order_in.model_dump(exclude_unset=True)
+    order = order_to_update.sqlmodel_update(order_data)
+    session.add(order)
+    session.commit()
+    session.refresh(order)
+    return {"Updated Order":order}
 
 @app.patch("/item_update/{order_id}")
 def update_item(order_id: int,
                 item_in: UpdateItem, 
                 session: Annotated[Session, Depends(get_session)],
                 user_data: Annotated[str | None, Depends(get_current_user)]):
-    statement = select(Order).where(Order.id == order_id)
-    result = session.exec(statement)
-    order = result.one_or_none()
+    order = get_order_by_id(order_id=order_id,session=session)
     if order is None:
         raise HTTPException(status_code=404, detail="User Not Found")
     if order.user_id != user_data["id"]:
         raise HTTPException(status_code=403,detail="User doesn't  have enough privileges")
-    return order
     item_to_update = session.get(OrderItem,order_id)
     item_data = item_in.model_dump(exclude_unset=True)
     item = item_to_update.sqlmodel_update(item_data)

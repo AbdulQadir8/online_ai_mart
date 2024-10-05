@@ -1,7 +1,7 @@
 from aiokafka import AIOKafkaProducer
 from fastapi import Depends
 from sqlmodel import Session
-from app.db_engine import engine
+from app.core.db_engine import engine
 from typing import Annotated
 from datetime import datetime
 

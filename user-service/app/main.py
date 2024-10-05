@@ -16,6 +16,7 @@ from .utils import get_hashed_password, verify_password, decode_token, create_re
 from app.crud import user_crud
 import logging
 import json
+from app.initial_data import main
 logging.basicConfig(level=logging.INFO)
 
 ALGORITHM: str = "HS256"
@@ -34,6 +35,7 @@ def create_db_and_tables()->None:
 async def lifespan(app: FastAPI)-> AsyncGenerator[None, None]:
     print("Creating tables..")
     create_db_and_tables()
+    main()
     yield
 
 

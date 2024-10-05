@@ -26,7 +26,6 @@ from typing import List
 
 #This class will contain the shared properties between different Order schemas.
 class OrderBase(SQLModel):
-    user_id: int
     status: str
     total_amount: float
     created_at: datetime = Field(default_factory=datetime.utcnow)
@@ -74,6 +73,7 @@ class UpdateItem(OrderItemBase):
 #These are your original database models, unchanged, as they already align with the pattern used for User.
 class Order(OrderBase, table=True):
     id: int | None = Field(default=None, primary_key=True)
+    user_id: int
     items: List["OrderItem"] = Relationship(back_populates="order")
 
 class OrderItem(OrderItemBase, table=True):

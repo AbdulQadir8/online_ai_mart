@@ -3,7 +3,7 @@ from sqlmodel import Session
 from tests.utils.utils import random_email,random_password,random_user_name
 from app.models.user_model import UserCreate, User, UserUpdate
 from app.crud.user_crud import create_user, authenticate, update_user
-from app.utils import verify_password, get_hashed_password
+from app.utils import verify_password
 
 
 
