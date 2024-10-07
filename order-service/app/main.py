@@ -71,7 +71,7 @@ async def create_order(order_data: CreateOrder,
     """ Create a new inventory item and send it to Kafka"""
       
     # Convert order_data to a dictionary and handle datetime fields
-    order_dict = order_data.dict()
+    order_dict = order_data.model_dump()
     order_dict["user_id"] = user_data["id"]
     order_dict["user_email"] = user_data["email"]
     order_dict["created_at"] = order_data.created_at.isoformat()
@@ -88,7 +88,7 @@ async def create_order(order_data: CreateOrder,
 @app.get("/orders/", response_model=list[Order])
 def read_orders(session: Annotated[Session, Depends(get_session)],
                 user_data: Annotated[str | None, Depends(get_current_user)]):
-        orders = session.exec(select(Order).where(Order.user_id == user_data["id"])).all()
+        orders = session.exec(select(Order)).all()
         return orders
 
 
