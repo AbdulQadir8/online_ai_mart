@@ -1,6 +1,8 @@
 from collections.abc import Generator
-import pytest
+from pytest_mock import AsyncMockType
 from fastapi.testclient import TestClient
+
+import pytest
 from sqlmodel import Session, delete
 
 from app import settings 
@@ -65,6 +67,10 @@ def db() -> Generator[Session, None, None]:
         session.exec(statement)
         session.commit()
 
+@pytest.fixture(scope="module")
+def mock_kafka_producer():
+    # Return a mock Kafka producer
+    return AsyncMockType()
 
 
 @pytest.fixture(scope="module")
@@ -73,22 +79,14 @@ def client() -> Generator[TestClient, None, None]:
         def get_session_override():
             yield session
 
-        def get_current_user_override():
-            return mock_user_data
-        def login_for_access_token_override():
-            pass
-
         app.dependency_overrides[get_session] = get_session_override
-        app.dependency_overrides[get_current_user] = get_current_user_override
-        app.dependency_overrides[login_for_access_token] = login_for_access_token_override
 
       
-        def mock_kafka_producer():
-            """Fixture to mock the Kafka producer"""
-            producer = None
-            return producer
+        # Ensure FastAPI uses the mock Kafka producer dependency
+        async def mock_get_kafka_producer():
+            yield mock_kafka_producer
 
-        app.dependency_overrides[get_kafka_producer] = mock_kafka_producer
+        app.dependency_overrides[get_kafka_producer] = mock_get_kafka_producer
         with TestClient(app) as c:
             yield c
 
