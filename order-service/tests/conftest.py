@@ -1,5 +1,5 @@
 from collections.abc import Generator
-from pytest_mock import AsyncMockType
+from unittest.mock import AsyncMock
 from fastapi.testclient import TestClient
 
 import pytest
@@ -55,7 +55,7 @@ order_data = {
 
 
 
-@pytest.fixture(scope="session", autouse=True)
+@pytest.fixture(scope="module", autouse=True)
 def db() -> Generator[Session, None, None]:
 
     with Session(engine) as session:
@@ -70,11 +70,11 @@ def db() -> Generator[Session, None, None]:
 @pytest.fixture(scope="module")
 def mock_kafka_producer():
     # Return a mock Kafka producer
-    return AsyncMockType()
+    return AsyncMock()
 
 
 @pytest.fixture(scope="module")
-def client() -> Generator[TestClient, None, None]:
+def client(mock_kafka_producer) -> Generator[TestClient, None, None]:
     with Session(engine) as session:
         def get_session_override():
             yield session
@@ -83,10 +83,18 @@ def client() -> Generator[TestClient, None, None]:
 
       
         # Ensure FastAPI uses the mock Kafka producer dependency
+        def mock_kafka_producer():
+          # Return a mock Kafka producer
+          return AsyncMock()
+
         async def mock_get_kafka_producer():
             yield mock_kafka_producer
 
         app.dependency_overrides[get_kafka_producer] = mock_get_kafka_producer
+
+        def login_for_access_token_override():
+            pass
+        app.dependency_overrides[login_for_access_token] = login_for_access_token_override   
         with TestClient(app) as c:
             yield c
 

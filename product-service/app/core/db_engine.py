@@ -2,10 +2,13 @@ from sqlmodel import create_engine
 from app import settings
 
 
-
-# only needed psycopg 3 - replace postgresql
+#only needed for psycopg 3 - replace postgresql
 # with postgresql+psycopg in settings.DATABASE_URL
 connection_string = str(settings.DATABASE_URL).replace(
+    "potgresql", "postgresql+psycopg"
+)
+
+test_connection_string = str(settings.TEST_DATABASE_URL).replace(
     "postgresql", "postgresql+psycopg"
 )
 
@@ -14,3 +17,7 @@ connection_string = str(settings.DATABASE_URL).replace(
 engine = create_engine(
     connection_string, connect_args={}, pool_recycle=300
 )
+
+tests_engine = create_engine(test_connection_string,echo=True)
+
+

@@ -11,7 +11,7 @@ import json
 from aiokafka import AIOKafkaProducer
 
 from app import settings
-from app.db_engine import engine
+from app.core.db_engine import engine
 from app.models.product_model import Product, ProductUpdate
 from app.crud.product_crud import add_new_product, get_all_products, get_product_by_id, delete_product_by_id, update_product_by_id
 from app.deps import get_session, get_kafka_producer, get_login_for_access_token, get_current_admin_dep

@@ -11,7 +11,7 @@ def test_read_root(client: TestClient) ->None:
 
 # Test function for the create_order route
 
-def test_create_order(client: TestClient):
+def test_create_order(client: TestClient, normal_user_token_headers: dict[str, str]):
     # Set up the mocked return values for dependencies
   
     order_data = {
@@ -35,21 +35,22 @@ def test_create_order(client: TestClient):
 }
 
     # Make a POST request to the /order/ route using TestClient
-    response = client.post("http://order-service:8007/order/", json=order_data)
+    response = client.post("http://order-service:8007/order/", json=order_data,
+                           headers=normal_user_token_headers)
 
     # Assertions for the response
     assert response.status_code == 200
     assert response.json() == order_data
 
 
-def test_read_orders(client: TestClient):
+def test_read_orders(client: TestClient, normal_user_token_headers):
     response = client.get("http://order-service:8007/orders/")
     assert response.status_code == 200
     orders = response.json()
     print(orders)
     assert len(orders) > 1
 
-def test_get_single_order(client: TestClient, db: dict[str, str]):
+def test_get_single_order(client: TestClient, db: dict[str, str], normal_user_token_headers):
     user_id = 3
     status = "Processing"
     total_amount = 100
