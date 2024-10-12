@@ -15,7 +15,7 @@ def get_current_user(token: Annotated[str | None, Depends(oauth2_scheme)]):
 
     if response.status_code == 200:
         return response.json()
-    raise HTTPException(status_code=response.status_code, detail=load_error_json(response))
+    raise HTTPException(status_code=response.status_code, detail=load_error_json(response.json()["detail"]))
 
 def login_for_access_token(form_data):
     url = "http://user-service:8000/login"
@@ -26,4 +26,4 @@ def login_for_access_token(form_data):
     response = post(url, data=data)
     if response.status_code == 200:
         return response.json()
-    raise HTTPException(status_code=response.status_code, detail=load_error_json(response))
+    raise HTTPException(status_code=response.status_code, detail=load_error_json(response.json()["detail"]))

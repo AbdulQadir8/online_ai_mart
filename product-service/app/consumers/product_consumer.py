@@ -1,7 +1,7 @@
 import logging
 import json
 from aiokafka import AIOKafkaProducer, AIOKafkaConsumer
-from app.models.product_model import Product, ProductUpdate
+from app.models.product_model import Product, UpdateProduct
 from app.crud.product_crud import add_new_product, get_product_by_id, delete_product_by_id, update_product_by_id
 from app.deps import get_session
 
@@ -40,7 +40,7 @@ async def consume_messages(topic, bootstrap_servers):
                         delete_product_by_id(product_id=product_id, session=session)
                         logging.info(f"Product deleted with ID: {product_id}")
                     elif action == "update" and product_id and product_data:
-                        new_product = ProductUpdate(**product_data)
+                        new_product = UpdateProduct(**product_data)
                         updated_product = update_product_by_id(product_id, new_product, session)
                         logging.info(f"Product updated with ID: {product_id}, Product: {updated_product}")
 

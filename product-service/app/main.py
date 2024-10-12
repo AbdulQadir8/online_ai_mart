@@ -1,7 +1,6 @@
 # main.py
 from contextlib import asynccontextmanager
 from fastapi.security import OAuth2PasswordRequestForm, OAuth2PasswordBearer
-from jose import jwt, JWTError
 from app import requests
 from typing import Annotated, AsyncGenerator
 from sqlmodel import Session, SQLModel
@@ -12,9 +11,9 @@ from aiokafka import AIOKafkaProducer
 
 from app import settings
 from app.core.db_engine import engine
-from app.models.product_model import Product, ProductUpdate
-from app.crud.product_crud import add_new_product, get_all_products, get_product_by_id, delete_product_by_id, update_product_by_id
-from app.deps import get_session, get_kafka_producer, get_login_for_access_token, get_current_admin_dep
+from app.models.product_model import Product, UpdateProduct, CreateProduct, PublicProduct
+from app.crud.product_crud import get_all_products, get_product_by_id, delete_product_by_id, update_product_by_id
+from app.deps import get_session, get_kafka_producer, get_current_admin_dep
 from app.consumers.product_consumer import consume_messages
 from app.consumers.inventory_consumer import consume_inventory_messages
 # from app.hello_ai import chat_completion
@@ -56,7 +55,7 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login-endpoint")
 
 @app.get("/")
 def read_root():
-    return {"Hello": "Product Service"}
+    return {"Hello1": "Product Service"}
 
 @app.post("/login-endpoint", tags=["Wrapper Auth"])
 def get_login_for_access_token(form_data: Annotated[OAuth2PasswordRequestForm, Depends()]):
@@ -69,7 +68,7 @@ def get_login_for_access_token(form_data: Annotated[OAuth2PasswordRequestForm, D
 @app.post("/manage-products/")
 async def create_new_product(
     token: Annotated[str | None, Depends(get_current_admin_dep)],
-    product: Product, 
+    product: CreateProduct, 
     producer: Annotated[AIOKafkaProducer, Depends(get_kafka_producer)]
 ):
     """ Create a new product and send it to Kafka"""
@@ -77,7 +76,8 @@ async def create_new_product(
     #     decoded_token_data = jwt.decode(token, SECRET_KEY , algorithms=[ALGORITHM])
     # except JWTError as e:
     #     return {"errorz": str(e)}
-    product_dict = {field: getattr(product, field) for field in product.dict()}
+    product_dict = {field: getattr(product, field) for field in product.model_dump()}
+    product_dict["expiry"] = product.expiry.isoformat()
     product_event = {
         "action": "create",
         "product": product_dict
@@ -99,7 +99,7 @@ def call_all_products(token: Annotated[str | None, Depends(get_current_admin_dep
 
     return get_all_products(session)
 
-@app.get("/manage-products/{product_id}")
+@app.get("/manage-products/{product_id}",response_model=PublicProduct)
 def get_single_product(product_id: int, session: Annotated[Session, Depends(get_session)],
                        token: Annotated[str | None, Depends(get_current_admin_dep)]):
     """ Get a single product by ID"""
@@ -132,13 +132,12 @@ async def delete_single_product(
     await producer.send_and_wait(settings.KAFKA_PRODUCT_TOPIC, product_event_json)
 
     delete_product_by_id(product_id, session)
-    return {"status": "deleted"}
+    return {"status": "Product deleted successfully"}
 
-@app.patch("/manage-products/{product_id}", response_model=ProductUpdate)
+@app.patch("/manage-products/{product_id}",response_model=dict)
 async def update_single_product(
     product_id: int, 
-    product: ProductUpdate, 
-    session: Annotated[Session, Depends(get_session)],
+    product: UpdateProduct, 
     producer: Annotated[AIOKafkaProducer, Depends(get_kafka_producer)],
     token: Annotated[str | None, Depends(get_current_admin_dep)]
 ):
@@ -155,8 +154,7 @@ async def update_single_product(
     product_event_json = json.dumps(product_event).encode("utf-8")
     await producer.send_and_wait(settings.KAFKA_PRODUCT_TOPIC, product_event_json)
 
-    update_product_by_id(product_id, product, session)
-    return product
+    return "Product Updated Successfully"
 # @app.get("/hello-ai")
 # def get_ai_response(prompt:str):
 #     return chat_completion(prompt)

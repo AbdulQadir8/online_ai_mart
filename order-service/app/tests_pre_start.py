@@ -13,7 +13,7 @@ def create_tables(*, db_engine: Engine) -> None:
     logger.info("Creating all tables")
     SQLModel.metadata.create_all(db_engine)
 
-def init_test_db(*, session: Session, db_engine: Engine=engine) -> None:
+def init_test_db(*, session: Session, db_engine: Engine) -> None:
     try:
         # Try to create session to check if DB is awake
         logger.info("Checking if DB is awake")

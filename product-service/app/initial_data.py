@@ -3,7 +3,7 @@ from sqlmodel import Session
 from app.core.config import logger_config
 from app.core.db_engine import engine
 
-from app.models.product_model import Product
+from app.models.product_model import Product, CreateProduct
 
 from tenacity import after_log, before_log, retry, stop_after_attempt, wait_fixed
 from sqlmodel import select

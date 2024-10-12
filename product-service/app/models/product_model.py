@@ -1,40 +1,39 @@
-from sqlmodel import SQLModel, Field, Relationship
-
-class Product(SQLModel, table=True):
-    id: int | None = Field(default=None, primary_key=True)
-    name: str 
-    description: str
-    price: float
-    expiry: str | None = None
-    brand: str | None = None
-    weight: str | None = None
-    category: str # It shall be pre defined by Platform
-    sku: str | None = None
-    # rating: list["ProductRating"] = Relationship(back_populates="product")
-    # image: str #Multiple | URL Not Media | One to Manu Relationship(back_populates="product")
-    # quantity: int | None = None # Shall it be managed by Inventory Microservices
-    # color: str | None = None # One to Many Rlationship
-    # rating: float | None = None # One to Manu Relationship
+from sqlmodel import SQLModel, Field
+from datetime import date
 
 
+class ProductBase(SQLModel):
+    name: str  # Name is required
+    description: str  
+    price: int # Price should be a positive number with 2 decimal places
+    expiry: date | None = None  # Expiry date can be None
+    brand: str | None = None  # Optional field with length validation
+    weight: str | None = None  # Assuming weight is a string (e.g., "1kg", "500g")
+    category: str | None  # Predefined by platform, should have constraints
+    sku: str | None = None  # SKU should be a valid string
 
-# class ProductRating(SQLModel, table=True):
-#     id: int | None = Field(default=None, primary_key=True)
-#     product_id: int = Field(foreign_key="product.id")
-#     rating: int 
-#     review: str | None = None
-#     product: Ralationship(back_populates="rating")
+
+class Product(ProductBase, table=True):
+    id: int | None = Field(default=None, primary_key=True)  # Auto-generated primary key
 
 
-    # user_id: int # One to Manu Relationship
+# Model used for creating a new product. Doesn't require 'id' since it's auto-generated.
+class CreateProduct(ProductBase):
+    pass
 
 
-class ProductUpdate(SQLModel):
+# Model used for public representation of the product (read-only).
+class PublicProduct(ProductBase):
+    id: int  # 'id' is included since it's needed when exposing the product publicly
+
+
+# Model used for updating a product. All fields are optional for partial updates.
+class UpdateProduct(SQLModel):
     name: str | None = None
     description: str | None = None
-    price: float | None = None 
-    expiry: str | None = None
+    price: int | None = None
+    expiry: date | None = None
     brand: str | None = None
-    weight: float | None = None
+    weight: str | None = None
     category: str | None = None
     sku: str | None = None
