@@ -8,7 +8,7 @@ from sqlmodel import Session, delete
 from app import settings 
 from app.core.db_engine import tests_engine as engine
 from app.core.requests import get_current_user, login_for_access_token
-from app.deps import get_session, get_kafka_producer
+from app.deps import get_session, get_kafka_producer, get_current_admin_dep
 from app.tests_pre_start import init_test_db
 from app.main import app
 from app.models.product_model import Product, CreateProduct
@@ -52,6 +52,12 @@ def client(mock_kafka_producer) -> Generator[TestClient, None, None]:
             yield session
 
         app.dependency_overrides[get_session] = get_session_override
+          # Override the get_current_admin_dep dependency
+        
+        # Mock the dependency
+        async def mock_get_current_admin_dep():
+            return "mock_admin_token"
+        app.dependency_overrides[get_current_admin_dep] = mock_get_current_admin_dep
 
       
         async def mock_get_kafka_producer():
@@ -64,6 +70,7 @@ def client(mock_kafka_producer) -> Generator[TestClient, None, None]:
         app.dependency_overrides[login_for_access_token] = login_for_access_token_override   
         with TestClient(app) as c:
             yield c
+            # app.dependency_overrides.clear()
 
 
 

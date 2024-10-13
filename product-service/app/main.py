@@ -12,7 +12,7 @@ from aiokafka import AIOKafkaProducer
 from app import settings
 from app.core.db_engine import engine
 from app.models.product_model import Product, UpdateProduct, CreateProduct, PublicProduct
-from app.crud.product_crud import get_all_products, get_product_by_id, delete_product_by_id, update_product_by_id
+from app.crud.product_crud import get_all_products, get_product_by_id, delete_product_by_id, validate_product_by_id
 from app.deps import get_session, get_kafka_producer, get_current_admin_dep
 from app.consumers.product_consumer import consume_messages
 from app.consumers.inventory_consumer import consume_inventory_messages
@@ -92,10 +92,6 @@ async def create_new_product(
 @app.get("/manage-products/all")
 def call_all_products(token: Annotated[str | None, Depends(get_current_admin_dep)],session: Annotated[Session, Depends(get_session)]):
     """ Get all products from the database"""
-    # try:
-    #    decoded_token_data = jwt.decode(token, SECRET_KEY , algorithms=[ALGORITHM])
-    # except JWTError as e:
-    #     return {"error": str(e)}
 
     return get_all_products(session)
 
@@ -103,14 +99,10 @@ def call_all_products(token: Annotated[str | None, Depends(get_current_admin_dep
 def get_single_product(product_id: int, session: Annotated[Session, Depends(get_session)],
                        token: Annotated[str | None, Depends(get_current_admin_dep)]):
     """ Get a single product by ID"""
-    # try:
-    #    decoded_token_data = jwt.decode(token, SECRET_KEY , algorithms=[ALGORITHM])
-    # except JWTError as e:
-    #     return {"error": str(e)}
-    try:
-        return get_product_by_id(product_id=product_id, session=session)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    product = get_product_by_id(product_id=product_id, session=session)
+    if not product:
+        raise HTTPException(status_code=400, detail="Product not found")
+    return product
 
 @app.delete("/manage-products/{product_id}", response_model=dict)
 async def delete_single_product(
@@ -120,10 +112,9 @@ async def delete_single_product(
     token: Annotated[str | None, Depends(get_current_admin_dep)]
 ):
     """ Delete a single product by ID"""
-    # try:
-    #    decoded_token_data = jwt.decode(token, SECRET_KEY , algorithms=[ALGORITHM])
-    # except JWTError as e:
-    #     return {"error": str(e)}
+    product = validate_product_by_id(product_id=product_id,session=session)
+    if not product:
+        raise HTTPException(status_code=400, detail=f"Product not found with this {product_id}")
     product_event = {
         "action": "delete",
         "product_id": product_id
@@ -137,15 +128,16 @@ async def delete_single_product(
 @app.patch("/manage-products/{product_id}",response_model=dict)
 async def update_single_product(
     product_id: int, 
-    product: UpdateProduct, 
+    product: UpdateProduct,
+    session: Annotated[Session, Depends(get_session)],
     producer: Annotated[AIOKafkaProducer, Depends(get_kafka_producer)],
     token: Annotated[str | None, Depends(get_current_admin_dep)]
 ):
-    # try:
-    #    decoded_token_data = jwt.decode(token, SECRET_KEY , algorithms=[ALGORITHM])
-    # except JWTError as e:
-    #     return {"error": str(e)}
-    product_dict = {field: getattr(product, field) for field in product.dict()}
+    """Update Product by id"""
+    product = validate_product_by_id(product_id=product_id,session=session)
+    if not product:
+       raise HTTPException(status_code=400, detail=f"Product not found with this {product_id}")
+    product_dict = {field: getattr(product, field) for field in product.model_dump()}
     product_event = {
         "action": "update",
         "product_id": product_id,
@@ -154,7 +146,7 @@ async def update_single_product(
     product_event_json = json.dumps(product_event).encode("utf-8")
     await producer.send_and_wait(settings.KAFKA_PRODUCT_TOPIC, product_event_json)
 
-    return "Product Updated Successfully"
+    return {"message":"Product Updated Successfully"}
 # @app.get("/hello-ai")
 # def get_ai_response(prompt:str):
 #     return chat_completion(prompt)
