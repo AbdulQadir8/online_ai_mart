@@ -2,9 +2,9 @@ from aiokafka import AIOKafkaProducer
 from sqlmodel import Session
 from fastapi import HTTPException, Depends
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
-from app.db_engine import engine
+from app.core.db_engine import engine
 from requests import post, get
-from app import requests
+from app.core import requests
 from app.utils import load_error_json
 from typing import Annotated
 

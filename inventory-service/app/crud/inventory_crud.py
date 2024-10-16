@@ -1,18 +1,18 @@
 from fastapi import HTTPException
 from sqlmodel import Session, select
-from app.models.inventory_model import InventoryItem, InventoryItemUpdate
+from app.models.inventory_model import InventoryItem, InventoryItemUpdate, CreateInventoryItem
 import logging
 logging.basicConfig(level=logging.INFO)
 
 
 # Add a New Inventory Item to the Database
-def add_new_inventory_item(inventory_item_data: InventoryItem, session: Session):
+def add_new_inventory_item(inventory_item_data: CreateInventoryItem, session: Session):
     print("Adding Inventory Item to Database")
-
-    session.add(inventory_item_data)
+    new_inventory_item = InventoryItem.model_validate(inventory_item_data)
+    session.add(new_inventory_item)
     session.commit()
-    session.refresh(inventory_item_data)
-    return inventory_item_data
+    session.refresh(new_inventory_item)
+    return new_inventory_item
 
 # Get All Inventory Items from the Database
 def get_all_inventory_items(session: Session):
@@ -23,8 +23,8 @@ def get_all_inventory_items(session: Session):
 # Get an Inventory Item by ID
 def get_inventory_item_by_id(inventory_item_id: int, session: Session):
     inventory_item = session.exec(select(InventoryItem).where(InventoryItem.id == inventory_item_id)).one_or_none()
-    if inventory_item is None:
-        raise HTTPException(status_code=404, detail="Inventory Item not found")
+    if not inventory_item:
+        return None
     return inventory_item
 
 
@@ -32,8 +32,8 @@ def get_inventory_item_by_id(inventory_item_id: int, session: Session):
 def delete_inventory_item_by_id(inventory_item_id: int, session: Session):
     # Step 1: Get the Inventory Item by ID
     inventory_item = session.exec(select(InventoryItem).where(InventoryItem.id == inventory_item_id)).one_or_none()
-    if inventory_item is None:
-        raise HTTPException(status_code=404, detail="Inventory Item not found")
+    if not inventory_item:
+        return None
     #Step 2: Delete the Inventory Item
     session.delete(inventory_item)
     session.commit()
@@ -45,8 +45,8 @@ def update_item_by_id(item_id: int, to_update_item_data:InventoryItemUpdate, ses
     # Step 1: Get the Product by ID
     logging.info("Crud Started...")
     inventory_item = session.get(InventoryItem,item_id)
-    if inventory_item is None:
-        raise HTTPException(status_code=404, detail="Product not found")
+    if not inventory_item:
+        return None
     # Step 2: Update the Product
     dict_data = to_update_item_data.model_dump(exclude_unset=True)
     update_data = {k: v for k, v in dict_data.items() if v is not None}
@@ -65,8 +65,8 @@ def update_item_by_id(item_id: int, to_update_item_data:InventoryItemUpdate, ses
 def get_quantity_value(product_id: int, session: Session):
     # Step 1: Get the Inventory Item by product_id
     inventory_item = session.exec(select(InventoryItem).where(InventoryItem.product_id == product_id)).one_or_none()
-    if inventory_item is None:
-        raise HTTPException(status_code=404, detail="Inventory Item not found")
+    if not inventory_item:
+        return None
     real_quantity = inventory_item.quantity
     return real_quantity
 
@@ -76,10 +76,8 @@ def decrease_quantity_value(product_id: int, quantity_value: int, session: Sessi
     statement = select(InventoryItem).where(InventoryItem.product_id == product_id)
     result = session.exec(statement)
     inventory_item = result.one_or_none()  # Get the single result or None if no result
-
     if inventory_item is None:
-        raise ValueError(f"No inventory item found with product_id {product_id}")
-
+        return None
     # Update the quantity
     updated_quantity = inventory_item.quantity - quantity_value
     inventory_item.quantity = updated_quantity

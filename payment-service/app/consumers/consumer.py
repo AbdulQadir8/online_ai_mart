@@ -1,10 +1,8 @@
 from aiokafka import AIOKafkaConsumer, AIOKafkaProducer
 import json
 from fastapi import HTTPException
-from sqlmodel import Session, select
 from app.deps import get_session
 from app.db_engine import engine
-from app.crud.payment_crud import get_payment
 from datetime import datetime
 from fastapi.responses import RedirectResponse
 from app.models.payment_model import Payment, Transaction

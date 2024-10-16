@@ -2,12 +2,11 @@
 from contextlib import asynccontextmanager
 import stripe
 from fastapi import FastAPI, Depends, HTTPException
-from fastapi.security import OAuth2PasswordBearer,OAuth2PasswordRequestForm
+from fastapi.security import OAuth2PasswordRequestForm
 from typing import AsyncGenerator, Annotated
 from datetime import datetime
 from aiokafka import AIOKafkaProducer
 import json
-from app.consumers.consumer import consume_order_messages
 from app.models.payment_model import Payment, Transaction
 from app.db_engine import engine
 from sqlmodel import SQLModel, Session

@@ -1,15 +1,17 @@
 from sqlmodel import Session, select
-from app.models.payment_model import Payment, Transaction
+from app.models.payment_model import (Payment,
+                                      Transaction,
+                                      CreatePayment,
+                                      CreateTransaction)
 from datetime import datetime
 from fastapi import HTTPException
 from fastapi.responses import RedirectResponse
-import os
 import stripe
 # Set the Stripe API key
 stripe.api_key = "sk_test_51PjlvEP3SJXV8PQkTdnMMA06tDTmZ7zktKhp9UvaPohoYDifcemNlip9zQZpTl6P9SShULaTxcN2yfK8o6Nwgznp000coKzVJN"
 
-def create_payment(session: Session, payment_data: Payment) -> Payment:
-    payment = payment_data
+def create_payment(session: Session, payment_data: CreatePayment) -> Payment:
+    payment = Payment.model_validate(payment_data)
     session.add(payment)
     session.commit()
     session.refresh(payment)
@@ -17,6 +19,8 @@ def create_payment(session: Session, payment_data: Payment) -> Payment:
 
 def get_payment(session: Session, payment_id: int) -> Payment | None:
     payment = session.get(Payment, payment_id)
+    if not payment:
+        return None
     return payment
 
 def update_payment_status(session: Session, payment_id: int, status: str) -> Payment | None:
@@ -30,8 +34,8 @@ def update_payment_status(session: Session, payment_id: int, status: str) -> Pay
     return payment
 
 # Transaction CRUD operations
-def create_transaction(session: Session, transaction_data: Transaction) -> Transaction:
-    transaction = transaction_data
+def create_transaction(session: Session, transaction_data: CreateTransaction) -> Transaction:
+    transaction = Transaction.model_validate(transaction_data)
     session.add(transaction)
     session.commit()
     session.refresh(transaction)
