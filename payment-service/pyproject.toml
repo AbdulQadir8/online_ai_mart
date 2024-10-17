@@ -8,8 +8,6 @@ readme = "README.md"
 [tool.poetry.dependencies]
 python = "^3.11"
 uvicorn = {extras = ["standard"], version = "^0.27.1"}
-sqlmodel = "^0.0.16"
-psycopg = {extras = ["binary"], version = "^3.1.18"}
 python-multipart = "^0.0.9"
 email-validator = "^2.1.1"
 passlib = {extras = ["bcrypt"], version = "^1.7.4"}
@@ -29,8 +27,11 @@ bcrypt = "4.0.1"
 pydantic-settings = "^2.2.1"
 sentry-sdk = {extras = ["fastapi"], version = "^1.42.0"}
 aiokafka = "^0.10.0"
-psycopg2 = "^2.9.9"
 stripe = "^10.6.0"
+sqlmodel = "^0.0.22"
+psycopg2 = "^2.9.10"
+psycopg-binary = "^3.2.3"
+psycopg = "^3.2.3"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.1.1"

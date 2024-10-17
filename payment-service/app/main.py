@@ -14,7 +14,8 @@ from app.deps import get_kafka_producer, get_session, GetCurrentAdminDep
 from app.requests import get_current_user, login_for_access_token
 from app.crud.payment_crud import (create_payment, update_payment_status,get_payment,
                                     get_transaction, create_transaction,
-                                    update_transaction_status)
+                                    update_transaction_status,delete_payment,
+                                    delete_transaction)
 from fastapi.middleware.cors import CORSMiddleware
 import stripe
 stripe.api_key = "sk_test_51PjlvEP3SJXV8PQkTdnMMA06tDTmZ7zktKhp9UvaPohoYDifcemNlip9zQZpTl6P9SShULaTxcN2yfK8o6Nwgznp000coKzVJN"
@@ -185,6 +186,12 @@ def update_payment_status_endpoint(payment_id: int, status: str, session: Sessio
         raise HTTPException(status_code=404, detail="Payment not found")
     return payment
 
+@app.delete("/payments/{payment_id}", response_model=dict,dependencies=[GetCurrentAdminDep])
+def delete_payment_by_id(payment_id: int, session: Session =Depends(get_session)):
+    response = delete_payment(session=session,payment_id=payment_id)
+    if not response:
+        raise HTTPException(status_code=404, detail="Payment not found")
+    return response
 
 
 @app.post("/transactions/", response_model=Transaction, dependencies=[GetCurrentAdminDep])
@@ -205,7 +212,12 @@ def update_transaction_status_endpoint(transaction_id: int, status: str, session
         raise HTTPException(status_code=404, detail="Transaction not found")
     return transaction
 
-
+@app.delete("/transaction/{transaction_id}",response_model=dict, dependencies=[GetCurrentAdminDep])
+def delete_transaction_by_id(transaction_id: int, session: Session = Depends(get_session)):
+    response = delete_transaction(session=session, transaction_id=transaction_id) 
+    if not response:
+        raise HTTPException(status_code=404, detail="Transaction not found")
+    return response
 
 
 # Stripe webhook secret

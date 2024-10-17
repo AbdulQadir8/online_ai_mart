@@ -4,11 +4,6 @@ from app.models.payment_model import (Payment,
                                       CreatePayment,
                                       CreateTransaction)
 from datetime import datetime
-from fastapi import HTTPException
-from fastapi.responses import RedirectResponse
-import stripe
-# Set the Stripe API key
-stripe.api_key = "sk_test_51PjlvEP3SJXV8PQkTdnMMA06tDTmZ7zktKhp9UvaPohoYDifcemNlip9zQZpTl6P9SShULaTxcN2yfK8o6Nwgznp000coKzVJN"
 
 def create_payment(session: Session, payment_data: CreatePayment) -> Payment:
     payment = Payment.model_validate(payment_data)
@@ -33,7 +28,14 @@ def update_payment_status(session: Session, payment_id: int, status: str) -> Pay
         session.refresh(payment)
     return payment
 
-# Transaction CRUD operations
+def delete_payment(session: Session, payment_id: int)-> dict | None:
+    retrieved_payment = session.exec(select(Payment).where(Payment.id == payment_id)).one_or_none()
+    if not retrieved_payment:
+        return None
+    session.delete(retrieved_payment)
+    session.commit()
+    return {"message":"Payment deleted successfully"}
+
 def create_transaction(session: Session, transaction_data: CreateTransaction) -> Transaction:
     transaction = Transaction.model_validate(transaction_data)
     session.add(transaction)
@@ -55,41 +57,10 @@ def update_transaction_status(session: Session, transaction_id: int, status: str
         session.refresh(transaction)
     return transaction
 
-
-
-
-def create_checkout_session(payment_id: int, session: Session):
-    payment = session.get(Payment, payment_id)
-    if not payment:
-        raise HTTPException(status_code=404, detail="Payment not found")
-    
-    try:
-        # Create Stripe Checkout Session
-        checkout_session = stripe.checkout.Session.create(
-            payment_method_types=['card'],
-            line_items=[{
-                'price_data': {
-                    'currency': payment.currency,
-                    'product_data': {
-                        'name': f'Order {payment.order_id}',
-                    },
-                    'unit_amount': int(payment.amount * 100),  # Amount in cents
-                },
-                'quantity': 1,
-                'metadata': {
-                    'user_id': payment.user_id,
-                    'payment_id': payment.id
-                    }
-            }],
-            mode='payment',
-            success_url='http://127.0.0.1:8008/docs',
-            cancel_url='http://127.0.0.1:8007/docs',
-        )
-        
-        # Update Payment Record
-        payment.stripe_checkout_session_id = checkout_session.id
-        session.add(payment)
-        session.commit()
-        return RedirectResponse(checkout_session.url)
-    except stripe.error.StripeError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+def delete_transaction(session: Session, transaction_id: int) ->dict | None:
+    retrieved_transaction = session.exec(select(Transaction).where(Transaction.id == transaction_id)).one_or_none()
+    if not retrieved_transaction:
+        return retrieved_transaction
+    session.delete(select)
+    session.commit()
+    return {"message":"Transaction deleted successfully"}

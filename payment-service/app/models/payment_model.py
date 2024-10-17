@@ -1,6 +1,7 @@
-from sqlmodel import SQLModel, Field
+from sqlmodel import SQLModel, Field, Relationship
 from datetime import datetime
 from pydantic import condecimal
+from typing import List
 
 
 # class Payment(SQLModel, table=True):
@@ -40,6 +41,9 @@ class Payment(PaymentBase, table=True):
     id: int | None = Field(default=None, primary_key=True)
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
+    # One-to-many relationship with Transaction
+    transactions: List["Transaction"] = Relationship(back_populates="payment",cascade_delete=True)
+
 
 
 # Model for creating a new Payment (no id, auto-generated timestamps)
@@ -73,9 +77,12 @@ class TransactionBase(SQLModel):
 # Transaction model for the database table
 class Transaction(TransactionBase, table=True):
     id: int | None = Field(default=None, primary_key=True)
+    # Foreign key with relationship to Payment
     payment_id: int = Field(foreign_key="payment.id",ondelete="CASCADE")
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
+    # Relationship back to Payment
+    payment: Payment = Relationship(back_populates="transactions")
 
 
 # Model for creating a new Transaction (excluding `id`, auto-generated timestamps)

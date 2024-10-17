@@ -65,6 +65,12 @@ def test_get_payment(db: Session):
     assert retrieved_payment.status == "completed"
     assert retrieved_payment.currency == "usd"
 
+def test_get_payment_not_found(db: Session):
+    fake_payment_id=99999
+    retrieved_payment = get_payment(session=db, payment_id=fake_payment_id)
+    
+    assert retrieved_payment == None
+
 
 def test_update_payment_status(db: Session):
     payment_data = CreatePayment(
@@ -81,6 +87,12 @@ def test_update_payment_status(db: Session):
     assert updated_payment
     assert updated_payment.status == "completed"
     assert updated_payment.updated_at >= created_payment.updated_at  # Ensure updated_at was changed
+
+def test_update_payment_status_not_found(db: Session):
+    fake_payment_id=99999
+    updated_payment = update_payment_status(session=db, payment_id=fake_payment_id, status="completed")
+    
+    assert updated_payment == None
 
 
 def test_create_transaction(db: Session):
@@ -130,6 +142,12 @@ def test_get_transaction(db: Session):
     assert retrieved_transaction.payment_id == created_payment.id
     assert retrieved_transaction.status == "initiated"
 
+def test_get_transaction_not_found(db: Session):
+    fake_transaction_id=99999
+    retrieved_transaction = get_transaction(session=db, transaction_id=fake_transaction_id)
+    
+    assert retrieved_transaction == None
+
 def test_update_transaction_status(db: Session):
     # First create a payment record that the transaction can reference
     payment_data = CreatePayment(
@@ -154,4 +172,10 @@ def test_update_transaction_status(db: Session):
 
     assert updated_transaction
     assert updated_transaction.status == "completed"
-    assert updated_transaction.updated_at => created_transaction.updated_at  # Ensure updated_at was updated
+    assert updated_transaction.updated_at >= created_transaction.updated_at  # Ensure updated_at was updated
+
+def test_update_transaction_status_not_found(db: Session):
+    fake_transaction_id=99999
+    updated_transaction = update_transaction_status(session=db, transaction_id=fake_transaction_id, status="completed")
+    
+    assert updated_transaction == None
