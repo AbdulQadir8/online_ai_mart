@@ -24,7 +24,14 @@
 #     assert db_data.amount == 300
 #     assert db_data.status == "completed"
 from app.models.payment_model import CreatePayment
-from app.crud.payment_crud import create_payment, get_payment, update_payment_status,create_transaction, get_transaction, update_transaction_status
+from app.crud.payment_crud import (create_payment,
+                                   get_payment,
+                                   update_payment_status,
+                                   create_transaction,
+                                   get_transaction,
+                                   update_transaction_status,
+                                   delete_payment,
+                                   delete_transaction)
 from sqlalchemy.orm import Session
 from datetime import datetime
 from app.models.payment_model import CreatePayment, CreateTransaction
@@ -93,6 +100,24 @@ def test_update_payment_status_not_found(db: Session):
     updated_payment = update_payment_status(session=db, payment_id=fake_payment_id, status="completed")
     
     assert updated_payment == None
+
+def test_delete_payment(db: Session):
+    payment_data = CreatePayment(
+        order_id=4,
+        user_id=6,
+        amount=400,
+        currency='eur',
+        status="pending"
+    )
+    created_payment = create_payment(session=db, payment_data=payment_data)
+    response = delete_payment(session=db,payment_id=created_payment.id)
+    assert response ==  {"message":"Payment deleted successfully"}
+
+def test_delete_payment_not_found(db: Session):
+    fake_payment_id=99999
+    response = delete_payment(session=db, payment_id=fake_payment_id)
+    
+    assert response == None
 
 
 def test_create_transaction(db: Session):
@@ -173,9 +198,35 @@ def test_update_transaction_status(db: Session):
     assert updated_transaction
     assert updated_transaction.status == "completed"
     assert updated_transaction.updated_at >= created_transaction.updated_at  # Ensure updated_at was updated
+    
 
 def test_update_transaction_status_not_found(db: Session):
     fake_transaction_id=99999
     updated_transaction = update_transaction_status(session=db, transaction_id=fake_transaction_id, status="completed")
     
     assert updated_transaction == None
+
+def test_delete_transaction(db: Session):
+    # First create a payment record that the transaction can reference
+    payment_data = CreatePayment(
+        order_id=4,
+        user_id=5,
+        amount=500,
+        currency='usd',
+        status="completed"
+    )
+    created_payment = create_payment(session=db, payment_data=payment_data)
+    transaction_data = CreateTransaction(
+        payment_id=created_payment.id,  # Ensure the payment_id is valid
+        status="initiated"
+    )
+    created_transaction = create_transaction(session=db, transaction_data=transaction_data)
+
+    response = delete_transaction(session=db, transaction_id=created_transaction.id)
+    assert response == {"message":"Transaction deleted successfully"}
+
+def test_delete_transaction_not_found(db: Session):
+    fake_transaction_id=99999
+    response = delete_transaction(session=db, transaction_id=fake_transaction_id)
+    
+    assert response == None

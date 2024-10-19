@@ -30,7 +30,7 @@ from pydantic import condecimal
 class PaymentBase(SQLModel):
     order_id: int
     user_id: int
-    amount: condecimal(gt=0, decimal_places=2)  # Amount must be positive with 2 decimal places
+    amount: int  # Amount must be positive with 2 decimal places
     currency: str  # You could add validation to limit to specific currencies
     status: str = "pending"  # Status default to "pending"
     stripe_checkout_session_id: str | None = None  # Optional Stripe session ID

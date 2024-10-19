@@ -61,6 +61,6 @@ def delete_transaction(session: Session, transaction_id: int) ->dict | None:
     retrieved_transaction = session.exec(select(Transaction).where(Transaction.id == transaction_id)).one_or_none()
     if not retrieved_transaction:
         return retrieved_transaction
-    session.delete(select)
+    session.delete(retrieved_transaction)
     session.commit()
     return {"message":"Transaction deleted successfully"}

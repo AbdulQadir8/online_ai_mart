@@ -7,7 +7,8 @@ from typing import AsyncGenerator, Annotated
 from datetime import datetime
 from aiokafka import AIOKafkaProducer
 import json
-from app.models.payment_model import Payment, Transaction
+from app.models.payment_model import (Payment,Transaction,CreatePayment,CreateTransaction,
+                                      PublicTransaction)
 from app.db_engine import engine
 from sqlmodel import SQLModel, Session
 from app.deps import get_kafka_producer, get_session, GetCurrentAdminDep
@@ -169,7 +170,7 @@ async def create_checkout_session(payment_id: int,
 
 
 @app.post("/payments/", response_model=Payment, dependencies=[GetCurrentAdminDep])
-def create_payment_endpoint(payment_data: Payment, session: Session = Depends(get_session)):
+def create_payment_endpoint(payment_data: CreatePayment, session: Session = Depends(get_session)):
     return create_payment(session, payment_data)
 
 @app.get("/payments/{payment_id}", response_model=Payment, dependencies=[GetCurrentAdminDep])
@@ -194,8 +195,8 @@ def delete_payment_by_id(payment_id: int, session: Session =Depends(get_session)
     return response
 
 
-@app.post("/transactions/", response_model=Transaction, dependencies=[GetCurrentAdminDep])
-def create_transaction_endpoint(transaction_data: Transaction, session: Session = Depends(get_session)):
+@app.post("/transactions/", response_model=PublicTransaction, dependencies=[GetCurrentAdminDep])
+def create_transaction_endpoint(transaction_data: CreateTransaction, session: Session = Depends(get_session)):
     return create_transaction(session, transaction_data)
 
 @app.get("/transactions/{transaction_id}", response_model=Transaction, dependencies=[GetCurrentAdminDep])
