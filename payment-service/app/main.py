@@ -12,7 +12,7 @@ from app.models.payment_model import (Payment,Transaction,CreatePayment,CreateTr
 from app.db_engine import engine
 from sqlmodel import SQLModel, Session
 from app.deps import get_kafka_producer, get_session, GetCurrentAdminDep
-from app.requests import get_current_user, login_for_access_token
+from app.requests import get_current_user, login_for_access_token, GetCurrentUser
 from app.crud.payment_crud import (create_payment, update_payment_status,get_payment,
                                     get_transaction, create_transaction,
                                     update_transaction_status,delete_payment,
@@ -68,7 +68,7 @@ def get_login_for_access_token(form_data: Annotated[OAuth2PasswordRequestForm, D
     auth_token = login_for_access_token(form_data)
     return auth_token
 
-@app.post("/create-checkout-session/")
+@app.post("/create-checkout-session/{payment_id}",dependencies=[GetCurrentUser])
 async def create_checkout_session(payment_id: int,
                                   session: Annotated[Session, Depends(get_session)],
                                   producer: Annotated[AIOKafkaProducer, Depends(get_kafka_producer)],
@@ -181,8 +181,8 @@ def get_payment_endpoint(payment_id: int, session: Session = Depends(get_session
     return payment
 
 @app.patch("/payments/{payment_id}", response_model=Payment, dependencies=[GetCurrentAdminDep])
-def update_payment_status_endpoint(payment_id: int, status: str, session: Session = Depends(get_session)):
-    payment = update_payment_status(session, payment_id, status)
+def update_payment_status_endpoint(payment_id: int, data: dict, session: Session = Depends(get_session)):
+    payment = update_payment_status(session=session, payment_id=payment_id, data=data)
     if not payment:
         raise HTTPException(status_code=404, detail="Payment not found")
     return payment
@@ -207,8 +207,8 @@ def get_transaction_endpoint(transaction_id: int, session: Session = Depends(get
     return transaction
 
 @app.patch("/transactions/{transaction_id}", response_model=Transaction, dependencies=[GetCurrentAdminDep])
-def update_transaction_status_endpoint(transaction_id: int, status: str, session: Session = Depends(get_session)):
-    transaction = update_transaction_status(session, transaction_id, status)
+def update_transaction_status_endpoint(transaction_id: int, data: dict, session: Session = Depends(get_session)):
+    transaction = update_transaction_status(session, transaction_id, data)
     if not transaction:
         raise HTTPException(status_code=404, detail="Transaction not found")
     return transaction

@@ -11,6 +11,11 @@ class NotificationStatus(str, Enum):
 class NotificationType(str, Enum):
     EMAIL = "email"
 
+class CreateNotification(SQLModel):
+    user_id: int
+    email: str
+    message: str
+
 class Notification(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     user_id: int

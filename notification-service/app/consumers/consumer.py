@@ -1,8 +1,5 @@
-from contextlib import asynccontextmanager
-from fastapi import FastAPI
-from typing import AsyncGenerator
+
 from aiokafka import AIOKafkaConsumer
-import asyncio
 from app.deps import process_notification
 import logging
 logging.basicConfig(level=logging.INFO)

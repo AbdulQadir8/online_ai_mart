@@ -88,8 +88,8 @@ def test_update_payment_status(db: Session):
         status="pending"
     )
     created_payment = create_payment(session=db, payment_data=payment_data)
-
-    updated_payment = update_payment_status(session=db, payment_id=created_payment.id, status="completed")
+    data = {"status":"completed"}
+    updated_payment = update_payment_status(session=db, payment_id=created_payment.id, data=data)
 
     assert updated_payment
     assert updated_payment.status == "completed"
@@ -97,7 +97,8 @@ def test_update_payment_status(db: Session):
 
 def test_update_payment_status_not_found(db: Session):
     fake_payment_id=99999
-    updated_payment = update_payment_status(session=db, payment_id=fake_payment_id, status="completed")
+    data = {"status":"completed"}
+    updated_payment = update_payment_status(session=db, payment_id=fake_payment_id, data=data)
     
     assert updated_payment == None
 
@@ -191,8 +192,9 @@ def test_update_transaction_status(db: Session):
     )
     created_transaction = create_transaction(session=db, transaction_data=transaction_data)
 
+    data = {"status":"completed"}
     updated_transaction = update_transaction_status(
-        session=db, transaction_id=created_transaction.id, status="completed"
+        session=db, transaction_id=created_transaction.id, data=data
     )
 
     assert updated_transaction
@@ -202,7 +204,8 @@ def test_update_transaction_status(db: Session):
 
 def test_update_transaction_status_not_found(db: Session):
     fake_transaction_id=99999
-    updated_transaction = update_transaction_status(session=db, transaction_id=fake_transaction_id, status="completed")
+    data = {"status":"completed"}
+    updated_transaction = update_transaction_status(session=db, transaction_id=fake_transaction_id, data=data)
     
     assert updated_transaction == None
 

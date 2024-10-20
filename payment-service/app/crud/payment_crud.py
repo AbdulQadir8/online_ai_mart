@@ -18,10 +18,10 @@ def get_payment(session: Session, payment_id: int) -> Payment | None:
         return None
     return payment
 
-def update_payment_status(session: Session, payment_id: int, status: str) -> Payment | None:
+def update_payment_status(session: Session, payment_id: int, data: dict) -> Payment | None:
     payment = session.get(Payment, payment_id)
     if payment:
-        payment.status = status
+        payment.status = data["status"]
         payment.updated_at = datetime.utcnow()
         session.add(payment)
         session.commit()
@@ -47,14 +47,15 @@ def get_transaction(session: Session, transaction_id: int) -> Transaction | None
     return session.get(Transaction, transaction_id)
 
 
-def update_transaction_status(session: Session, transaction_id: int, status: str) -> Transaction | None:
+def update_transaction_status(session: Session, transaction_id: int, data: dict) -> Transaction | None:
     transaction = session.get(Transaction, transaction_id)
-    if transaction:
-        transaction.status = status
-        transaction.updated_at = datetime.utcnow()
-        session.add(transaction)
-        session.commit()
-        session.refresh(transaction)
+    if not transaction:
+        return None
+    transaction.status = data["status"]
+    transaction.updated_at = datetime.utcnow()
+    session.add(transaction)
+    session.commit()
+    session.refresh(transaction)
     return transaction
 
 def delete_transaction(session: Session, transaction_id: int) ->dict | None:

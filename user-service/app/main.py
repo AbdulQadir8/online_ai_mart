@@ -50,7 +50,7 @@ app = FastAPI(lifespan=lifespan,
 
 @app.get("/")
 def read_root():
-    return {"App1": "User Service1"}
+    return {"App": "User Service1"}
 
 @app.get("/users",dependencies=[Depends(get_current_active_superuser)])
 def ge_all_users(session: SessionDep, skip: int= 0, limit: int= 100) -> Any:

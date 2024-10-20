@@ -5,7 +5,6 @@ from fastapi.testclient import TestClient
 import pytest
 from sqlmodel import Session, delete
 
-from app import settings 
 from app.core.db_engine import tests_engine as engine
 from app.core.requests import get_current_user, login_for_access_token
 from app.deps import get_session, get_kafka_producer, get_current_admin_dep
@@ -28,6 +27,16 @@ mock_user_data = {
                  "role": "admin",
                  "id": 1
                  }
+
+mock_current_user_data = {
+                        "user_name": "usama123",
+                        "email": "usama123",
+                        "is_active": True,
+                        "is_superuser": True,
+                        "full_name": True,
+                        "role": "admin",
+                        "id": 1
+                        }
 
 
 
@@ -55,6 +64,7 @@ def mock_kafka_producer():
     return AsyncMock()
 
 
+
 @pytest.fixture(scope="module")
 def client(mock_kafka_producer) -> Generator[TestClient, None, None]:
     with Session(engine) as session:
@@ -68,6 +78,11 @@ def client(mock_kafka_producer) -> Generator[TestClient, None, None]:
         async def mock_get_current_admin_dep():
             return "mock_admin_token"
         app.dependency_overrides[get_current_admin_dep] = mock_get_current_admin_dep
+
+        def mock_get_current_user():
+            return mock_current_user_data
+        
+        app.dependency_overrides[get_current_user] = mock_get_current_user
 
       
         async def mock_get_kafka_producer():
@@ -97,8 +112,8 @@ def client(mock_kafka_producer) -> Generator[TestClient, None, None]:
 
 # @pytest.fixture(scope="module")
 # def superuser_token_headers(client: TestClient) -> dict[str, str]:
-    # return get_superuser_token_headers(client)
-# 
+#     return get_superuser_token_headers(client)
+
 # @pytest.fixture(scope="module")
 # def normal_user_token_headers(client: TestClient, db: Session) -> dict[str, str]:
     # return authentication_token_from_email(

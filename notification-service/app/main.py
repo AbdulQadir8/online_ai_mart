@@ -5,9 +5,9 @@ from sqlmodel import SQLModel, Session
 from typing import AsyncGenerator, Annotated
 from aiokafka import AIOKafkaProducer
 import asyncio
-from app.db_engine import engine
+from app.core.db_engine import engine
 from app.consumers.consumer import consume__order_messages, consume_pass_rest_messages
-from app.models.notification_model import Notification
+from app.models.notification_model import Notification, CreateNotification
 from app.deps import get_session, get_kafka_producer
 import json
 
@@ -43,12 +43,12 @@ app = FastAPI(lifespan=lifespan, title="Notification Service api with DB",
 def read_root():
     return {"App": "Notification Service"}
 @app.post("/notifications/")
-async def create_notification(user_id: int, email: str, message: str,
+async def create_notification(data: CreateNotification,
                               producer: Annotated[AIOKafkaProducer, Depends(get_kafka_producer)]):
     notification_data = {
-        "user_id": user_id,
-        "email":email,
-        "message": message,
+        "user_id": data.user_id,
+        "email":data.email,
+        "message": data.message,
         "notification_type": "email"
     }
     notification_json = json.dumps(notification_data).encode("utf-8")
@@ -61,10 +61,4 @@ async def get_notification_status(notification_id: int, session: Annotated[Sessi
     notification = session.get(Notification, notification_id)
     if not notification:
         return {"error": "Notification not found"}
-    return {
-        "user_id": notification.user_id,
-        "message": notification.message,
-        "status": notification.status,
-        "created_at": notification.created_at,
-        "updated_at": notification.updated_at
-    }
+    return notification

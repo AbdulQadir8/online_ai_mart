@@ -4,7 +4,7 @@ from aiokafka import AIOKafkaProducer
 import logging
 logging.basicConfig(level=logging.INFO)
 from sqlmodel import Session
-from app.db_engine import engine
+from app.core.db_engine import engine
 
 
 #Kafka Producer as a dependency
