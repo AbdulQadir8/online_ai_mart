@@ -17,6 +17,7 @@ from app.deps import get_session, get_kafka_producer, get_current_admin_dep
 from app.consumers.product_consumer import consume_messages
 from app.consumers.inventory_consumer import consume_inventory_messages
 # from app.hello_ai import chat_completion
+from app import product_pb2
 
 
 ALGORITHM: str = "HS256"
@@ -55,7 +56,7 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login-endpoint")
 
 @app.get("/")
 def read_root():
-    return {"Hello1": "Product Service"}
+    return {"Hello": "Product Service"}
 
 @app.post("/login-endpoint", tags=["Wrapper Auth"])
 def get_login_for_access_token(form_data: Annotated[OAuth2PasswordRequestForm, Depends()]):
@@ -76,16 +77,29 @@ async def create_new_product(
     #     decoded_token_data = jwt.decode(token, SECRET_KEY , algorithms=[ALGORITHM])
     # except JWTError as e:
     #     return {"errorz": str(e)}
-    product_dict = {field: getattr(product, field) for field in product.model_dump()}
-    product_dict["expiry"] = product.expiry.isoformat()
-    product_event = {
-        "action": "create",
-        "product": product_dict
-    }
-    product_json = json.dumps(product_event).encode("utf-8")
-    print("product_JSON:", product_event)
-    
-    await producer.send_and_wait(settings.KAFKA_PRODUCT_TOPIC, product_json)
+    # product_dict = {field: getattr(product, field) for field in product.model_dump()}
+    # product_dict["expiry"] = product.expiry.isoformat()
+    # product_event = {
+    #     "action": "create",
+    #     "product": product_dict
+    # }
+    # product_json = json.dumps(product_event).encode("utf-8")
+    expiry = product.expiry.isoformat()
+    product_protobuf = product_pb2.Product(name=product.name,
+                                           description=product.description,
+                                           price=product.price,
+                                           expiry=expiry,
+                                           brand=product.brand,
+                                           weight=product.weight,
+                                           category=product.category,
+                                           sku=product.sku,
+                                           action="create")
+    print(f"Product Protobuf Data: {product_protobuf}")
+        # Serialize the message to a byte string
+    serialized_product = product_protobuf.SerializeToString()
+    print(f"Serialized data: {serialized_product}")
+        
+    await producer.send_and_wait(settings.KAFKA_PRODUCT_TOPIC, serialized_product)
     return product
             
 

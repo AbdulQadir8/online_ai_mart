@@ -1,0 +1,16 @@
+syntax = "proto3";
+
+package product;
+
+message Product {
+    string name = 1;             // Name is required
+    string description = 2;      // Description is optional
+    double price = 3;            // Price should be positive and handled as a double
+    string expiry = 4;           // Expiry can be None, using string to handle date
+    string brand = 5;            // Optional, with length validation (can be constrained in service logic)
+    string weight = 6;           // Optional, using string to accommodate formats like "1kg", "500g"
+    string category = 7;         // Optional, predefined by platform, constraints can be added in service logic
+    string sku = 8;              // Optional, must be a valid string
+    string action = 9;           // Enum field for predefined action
+}
+

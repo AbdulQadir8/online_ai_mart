@@ -1,32 +1,5 @@
 name: template01
 services:
-  api:
-    image: todo-mart-api
-    build:
-      context: ./todo
-      dockerfile: Dockerfile.dev
-    restart: always # Any Issue when RUnning Contianer = ShutDown
-    volumes:
-      - ./todo:/code  # Sync local development directory with the container
-    depends_on:
-        - postgres_db
-        - postgres_test_db  # Test database for API
-        - broker
-    ports:
-      - "8002:8000"  # Expose container port 8000 to host port 8000  
-  api2:
-    image: ms2-mart-api
-    build:
-      context: ./microservice_02
-      dockerfile: Dockerfile.dev
-    volumes:
-      - ./microservice_02:/code  # Sync local development directory with the container
-    depends_on:
-        - postgres_db
-        - postgres_test_db  # Test database for API2
-        - broker
-    ports:
-      - "8003:8000"  # Expose container port 8000 to host port 8000  
   product-service:
     image: product-mart-api
     build:
@@ -105,19 +78,6 @@ services:
       - broker
     ports:
       - "8010:8000"  # Expose container port 8000 to host port 8009
-  postgres_db:
-    image: postgres:latest  # Use the official PostgreSQL image
-    restart: always
-    container_name: PostgresCont
-    environment:
-        - POSTGRES_USER=usamaali
-        - POSTGRES_PASSWORD=my_password
-        - POSTGRES_DB=mydatabase
-    ports:
-        - '5460:5432'
-    volumes:
-        - postgres_db:/var/lib/postgresql/data
-
 
   postgres_product_db:
     image: postgres:latest  # Use the official PostgreSQL image
@@ -245,8 +205,6 @@ services:
       - broker
 
 volumes:
-  postgres_db:
-    driver: local
   postgres_product_db:
     driver: local
   postgres_inventory_db:
