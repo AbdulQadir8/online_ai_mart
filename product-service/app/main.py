@@ -11,13 +11,16 @@ from aiokafka import AIOKafkaProducer
 
 from app import settings
 from app.core.db_engine import engine
-from app.models.product_model import Product, UpdateProduct, CreateProduct, PublicProduct
+from app.models.product_model import UpdateProduct, CreateProduct, PublicProduct
 from app.crud.product_crud import get_all_products, get_product_by_id, delete_product_by_id, validate_product_by_id
 from app.deps import get_session, get_kafka_producer, get_current_admin_dep
 from app.consumers.product_consumer import consume_messages
 from app.consumers.inventory_consumer import consume_inventory_messages
 # from app.hello_ai import chat_completion
+
+from app.produce_proto_message import produce_protobuf_message
 from app import product_pb2
+from app.product_pb2 import Product
 
 
 ALGORITHM: str = "HS256"
@@ -32,7 +35,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     print("Starting application lifespan...")
     create_db_and_tables()
 
-    task1 = asyncio.create_task(consume_messages(settings.KAFKA_PRODUCT_TOPIC, 'broker:19092'))
+    task1 = asyncio.create_task(consume_messages(settings.KAFKA_PRODUCT_TOPIC, 'broker:19092',schema_registry_url="http://localhost:8081"))
     task2 = asyncio.create_task(consume_inventory_messages("AddStock", 'broker:19092'))
 
     yield
@@ -56,7 +59,7 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login-endpoint")
 
 @app.get("/")
 def read_root():
-    return {"Hello": "Product Service"}
+    return {"Hello1": "Product Service"}
 
 @app.post("/login-endpoint", tags=["Wrapper Auth"])
 def get_login_for_access_token(form_data: Annotated[OAuth2PasswordRequestForm, Depends()]):
@@ -73,33 +76,25 @@ async def create_new_product(
     producer: Annotated[AIOKafkaProducer, Depends(get_kafka_producer)]
 ):
     """ Create a new product and send it to Kafka"""
-    # try:
-    #     decoded_token_data = jwt.decode(token, SECRET_KEY , algorithms=[ALGORITHM])
-    # except JWTError as e:
-    #     return {"errorz": str(e)}
-    # product_dict = {field: getattr(product, field) for field in product.model_dump()}
-    # product_dict["expiry"] = product.expiry.isoformat()
-    # product_event = {
-    #     "action": "create",
-    #     "product": product_dict
-    # }
-    # product_json = json.dumps(product_event).encode("utf-8")
-    expiry = product.expiry.isoformat()
     product_protobuf = product_pb2.Product(name=product.name,
                                            description=product.description,
                                            price=product.price,
-                                           expiry=expiry,
+                                           expiry=product.expiry.isoformat(),
                                            brand=product.brand,
                                            weight=product.weight,
                                            category=product.category,
                                            sku=product.sku,
                                            action="create")
-    print(f"Product Protobuf Data: {product_protobuf}")
-        # Serialize the message to a byte string
-    serialized_product = product_protobuf.SerializeToString()
-    print(f"Serialized data: {serialized_product}")
+    # print(f"Product Protobuf Data: {product_protobuf}")
+    #     # Serialize the message to a byte string
+    # serialized_product = product_protobuf.SerializeToString()
+    # print(f"Serialized data: {serialized_product}")
         
-    await producer.send_and_wait(settings.KAFKA_PRODUCT_TOPIC, serialized_product)
+    # await producer.send_and_wait(settings.KAFKA_PRODUCT_TOPIC, serialized_product)
+    
+    # Serialize and send to Kafka
+    await produce_protobuf_message(producer=producer,topic=settings.KAFKA_PRODUCT_TOPIC , product=product_protobuf)
+    
     return product
             
 
@@ -129,12 +124,18 @@ async def delete_single_product(
     product = validate_product_by_id(product_id=product_id,session=session)
     if not product:
         raise HTTPException(status_code=400, detail=f"Product not found with this {product_id}")
-    product_event = {
-        "action": "delete",
-        "product_id": product_id
-    }
-    product_event_json = json.dumps(product_event).encode("utf-8")
-    await producer.send_and_wait(settings.KAFKA_PRODUCT_TOPIC, product_event_json)
+    # product_event = {
+    #     "action": "delete",
+    #     "product_id": product_id
+    # }
+    # product_event_json = json.dumps(product_event).encode("utf-8")
+    protobuf_data = product_pb2.Product(product_id=product_id,
+                                        action="delete")
+    print(f"Protobuf Data: {protobuf_data}")
+    # Serialize the message to a byte string
+    serialized_data_event = protobuf_data.SerializeToString()
+    print(f"Serialized data: {serialized_data_event}")
+    await producer.send_and_wait(settings.KAFKA_PRODUCT_TOPIC, serialized_data_event)
 
     delete_product_by_id(product_id, session)
     return {"status": "Product deleted successfully"}
@@ -142,7 +143,7 @@ async def delete_single_product(
 @app.patch("/manage-products/{product_id}",response_model=dict)
 async def update_single_product(
     product_id: int, 
-    product: UpdateProduct,
+    product_to_update: UpdateProduct,
     session: Annotated[Session, Depends(get_session)],
     producer: Annotated[AIOKafkaProducer, Depends(get_kafka_producer)],
     token: Annotated[str | None, Depends(get_current_admin_dep)]
@@ -151,14 +152,27 @@ async def update_single_product(
     product = validate_product_by_id(product_id=product_id,session=session)
     if not product:
        raise HTTPException(status_code=400, detail=f"Product not found with this {product_id}")
-    product_dict = {field: getattr(product, field) for field in product.model_dump()}
-    product_event = {
-        "action": "update",
-        "product_id": product_id,
-        "product": product_dict
-    }
-    product_event_json = json.dumps(product_event).encode("utf-8")
-    await producer.send_and_wait(settings.KAFKA_PRODUCT_TOPIC, product_event_json)
+    # product_dict = {field: getattr(product_to_update, field) for field in product_to_update.model_dump()}
+    # product_event = {
+    #     "action": "update",
+    #     "product_id": product_id,
+    #     "product": product_dict
+    # }
+    # product_event_json = json.dumps(product_event).encode("utf-8")
+    protobuf_data = product_pb2.Product(
+                                            name=product_to_update.name,
+                                            description=product_to_update.description,
+                                            price=product_to_update.price,
+                                            expiry=product_to_update.expiry.isoformat(),
+                                            brand=product_to_update.brand,
+                                            weight=product_to_update.weight,
+                                            category=product_to_update.category,
+                                            sku=product_to_update.sku,
+                                            product_id=product_id,
+                                            action="update"
+                                            )
+    serialized_data = protobuf_data.SerializeToString()
+    await producer.send_and_wait(settings.KAFKA_PRODUCT_TOPIC, serialized_data)
 
     return {"message":"Product Updated Successfully"}
 # @app.get("/hello-ai")
