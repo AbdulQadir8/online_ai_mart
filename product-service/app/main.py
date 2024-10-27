@@ -18,7 +18,6 @@ from app.consumers.product_consumer import consume_messages
 from app.consumers.inventory_consumer import consume_inventory_messages
 # from app.hello_ai import chat_completion
 
-from app.produce_proto_message import produce_protobuf_message
 from app import product_pb2
 from app.product_pb2 import Product
 
@@ -35,7 +34,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     print("Starting application lifespan...")
     create_db_and_tables()
 
-    task1 = asyncio.create_task(consume_messages(settings.KAFKA_PRODUCT_TOPIC, 'broker:19092',schema_registry_url="http://localhost:8081"))
+    task1 = asyncio.create_task(consume_messages(settings.KAFKA_PRODUCT_TOPIC, 'broker:19092'))
     task2 = asyncio.create_task(consume_inventory_messages("AddStock", 'broker:19092'))
 
     yield
@@ -59,7 +58,7 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login-endpoint")
 
 @app.get("/")
 def read_root():
-    return {"Hello1": "Product Service"}
+    return {"Hello": "Product Service"}
 
 @app.post("/login-endpoint", tags=["Wrapper Auth"])
 def get_login_for_access_token(form_data: Annotated[OAuth2PasswordRequestForm, Depends()]):
@@ -85,15 +84,12 @@ async def create_new_product(
                                            category=product.category,
                                            sku=product.sku,
                                            action="create")
-    # print(f"Product Protobuf Data: {product_protobuf}")
-    #     # Serialize the message to a byte string
-    # serialized_product = product_protobuf.SerializeToString()
-    # print(f"Serialized data: {serialized_product}")
+    print(f"Product Protobuf Data: {product_protobuf}")
+        # Serialize the message to a byte string
+    serialized_product = product_protobuf.SerializeToString()
+    print(f"Serialized data: {serialized_product}")
         
-    # await producer.send_and_wait(settings.KAFKA_PRODUCT_TOPIC, serialized_product)
-    
-    # Serialize and send to Kafka
-    await produce_protobuf_message(producer=producer,topic=settings.KAFKA_PRODUCT_TOPIC , product=product_protobuf)
+    await producer.send_and_wait(settings.KAFKA_PRODUCT_TOPIC, serialized_product)
     
     return product
             
