@@ -3,6 +3,8 @@ from aiokafka import AIOKafkaConsumer, AIOKafkaProducer
 import json
 from app.deps import get_session
 from app.crud.product_crud import validate_product_by_id
+from google.protobuf.json_format import MessageToDict
+from app.proto import product_pb2
 
 logging.basicConfig(level=logging.INFO)
 
@@ -25,10 +27,16 @@ async def consume_inventory_messages(topic, bootstrap_servers):
             logging.debug(f"Message Value {message.value}")
 
             # 1. Extract Product Id
-            inventory_data = json.loads(message.value.decode())
-            item = inventory_data["item"]
-            product_id = item["product_id"]
-            logging.debug("PRODUCT ID: %s", product_id)
+            # inventory_data = json.loads(message.value.decode())
+            # item = inventory_data["item"]
+            # product_id = item["product_id"]
+            # logging.debug("PRODUCT ID: %s", product_id)
+            new_inventory = product_pb2.Inventory()
+            new_inventory.ParseFromString(message.value)
+            print(f"\n\n Iventory Deserialized Data: {new_inventory}")
+            # Converts protobuf message to a dictionary.
+            inventory_data = MessageToDict(new_inventory)
+            product_id = inventory_data["product_id"]
 
             try:
                 with next(get_session()) as session:

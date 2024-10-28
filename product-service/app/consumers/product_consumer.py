@@ -4,7 +4,7 @@ from app.models.product_model import UpdateProduct, CreateProduct
 from app.crud.product_crud import add_new_product, delete_product_by_id, update_product_by_id
 from app.deps import get_session
 from google.protobuf.json_format import MessageToDict
-from app import product_pb2
+from app.proto import product_pb2
 
 # Set the logging level to INFO for aiokafka to reduce verbosity
 logging.basicConfig(level=logging.INFO)

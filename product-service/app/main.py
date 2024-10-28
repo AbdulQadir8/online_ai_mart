@@ -18,8 +18,8 @@ from app.consumers.product_consumer import consume_messages
 from app.consumers.inventory_consumer import consume_inventory_messages
 # from app.hello_ai import chat_completion
 
-from app import product_pb2
-from app.product_pb2 import Product
+from app.proto import product_pb2
+from app.proto.product_pb2 import Product
 
 
 ALGORITHM: str = "HS256"

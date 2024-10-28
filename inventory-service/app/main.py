@@ -20,6 +20,7 @@ from app.consumers.ordervalidation_consumer import consume_order_messages
 
 from fastapi.security import OAuth2PasswordRequestForm
 from app.core import requests
+from app.proto.inventory_pb2 import Inventory
 
 def create_db_and_tables() -> None:
     SQLModel.metadata.create_all(engine)
@@ -63,13 +64,24 @@ def get_login_for_access_token(form_data: Annotated[OAuth2PasswordRequestForm, D
 async def create_new_inventory_item(item: CreateInventoryItem, producer: Annotated[AIOKafkaProducer, Depends(get_kafka_producer)]):
     """ Create a new inventory item and send it to Kafka"""
 
-    item_dict = {field: getattr(item, field) for field in item.model_dump()}
-    item_event = {"action":"create",
-                  "item":item_dict}
-    item_json = json.dumps(item_event).encode("utf-8")
-    print("item_JSON:", item_json)
-    # Produce message
-    await producer.send_and_wait("AddStock", item_json)
+    # item_dict = {field: getattr(item, field) for field in item.model_dump()}
+    # item_event = {"action":"create",
+    #               "item":item_dict}
+    # item_json = json.dumps(item_event).encode("utf-8")
+    # print("item_JSON:", item_json)
+    # # Produce message
+    # await producer.send_and_wait("AddStock", item_json)
+    proto_data = Inventory(product_id=item.product_id,
+                variant_id=item.variant_id,
+                quantity=item.quantity,
+                status=item.status,
+                action="create")
+    print("ProtoMessageType Data:",proto_data)
+    # Serialize the message to a byte string
+    serialized_data = proto_data.SerializeToString()
+    print("Serialized Data:",serialized_data)
+    await producer.send_and_wait("AddStock", serialized_data)
+
     return item
 
 

@@ -14,3 +14,12 @@ message Product {
     int32 product_id = 9;              // Optional, must be a valid string
     string action = 10;           // Enum field for predefined action
 }
+
+
+message Inventory {
+    int32 product_id = 1;
+    int32 variant_id = 2;
+    int32 quantity = 3;
+    string status = 4;
+    string action = 5;
+}
