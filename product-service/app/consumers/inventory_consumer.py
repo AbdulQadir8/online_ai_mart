@@ -33,9 +33,10 @@ async def consume_inventory_messages(topic, bootstrap_servers):
             # logging.debug("PRODUCT ID: %s", product_id)
             new_inventory = product_pb2.Inventory()
             new_inventory.ParseFromString(message.value)
-            print(f"\n\n Iventory Deserialized Data: {new_inventory}")
+            logging.info(f"\n\n Iventory Deserialized Data: {new_inventory}")
             # Converts protobuf message to a dictionary.
-            inventory_data = MessageToDict(new_inventory)
+            inventory_data = MessageToDict(new_inventory,preserving_proto_field_name=True)
+            logging.info(f"Inventory Dictionary data: {inventory_data}")
             product_id = inventory_data["product_id"]
 
             try:

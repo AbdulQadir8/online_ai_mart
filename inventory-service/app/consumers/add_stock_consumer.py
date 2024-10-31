@@ -1,9 +1,12 @@
 import logging
 from aiokafka import AIOKafkaConsumer
-import json
 from app.deps import get_session
 from app.crud.inventory_crud import add_new_inventory_item, delete_inventory_item_by_id, update_item_by_id
 from app.models.inventory_model import InventoryItem, InventoryItemUpdate
+
+from google.protobuf.json_format import MessageToDict
+from app.proto import inventory_pb2
+
 
 logging.basicConfig(level=logging.INFO)
 
@@ -19,11 +22,20 @@ async def consume_messages(topic, bootstrap_servers):
     logging.info("Consumer started and subscribed to topic.")
     try:        
         async for message in consumer:
-            logging.info(f"Received message: {message}")
-            event = json.loads(message.value.decode())
-            action = event.get("action")
-            item_data = event.get("item")
-            item_id = event.get("item_id")
+            # logging.info(f"Received message: {message}")
+            # event = json.loads(message.value.decode())
+            # action = event.get("action")
+            # item_data = event.get("item")
+            # item_id = event.get("item_id")
+            new_inventory = inventory_pb2.Inventory()
+            new_inventory.ParseFromString(message.value)
+            print(f"\n\n Iventory Deserialized Data: {new_inventory}")
+            # Converts protobuf message to a dictionary.
+            item_data = MessageToDict(new_inventory,preserving_proto_field_name=True)
+            action = item_data["action"]
+            item_id = item_data.get("item_id")
+            
+
 
             logging.info(f"Action: {action}, Item Data: {item_data}, Item ID: {item_id}")
 
@@ -39,7 +51,7 @@ async def consume_messages(topic, bootstrap_servers):
                             inventory_item_id=item_id,
                             session=session
                         )
-                    elif action == "update" and item_id and item_data:
+                    elif action == "update" and item_id:
                         update_item_by_id(
                             item_id=item_id,
                             to_update_item_data=InventoryItemUpdate(**item_data),

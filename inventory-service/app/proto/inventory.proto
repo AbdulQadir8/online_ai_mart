@@ -9,4 +9,5 @@ message Inventory {
     int32 quantity = 3;
     string status = 4;
     string action = 5;
+    int32 item_id = 6;
 }

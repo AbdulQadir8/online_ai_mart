@@ -47,7 +47,7 @@ app = FastAPI(
 
 @app.get("/")
 def read_root():
-    return {"Hello": "Inventory Service"}
+    return {"Hello": "Inventory Service1"}
 
 
 @app.post("/login-endpoint", tags=["Wrapper Auth"])
@@ -107,12 +107,16 @@ async def delete_single_inventory_item(item_id: int,
       inventory_item = get_inventory_item_by_id(inventory_item_id=item_id, session=session)
       if not inventory_item:
         raise HTTPException(status_code=404, detail=f"Inventory not found with id:{item_id}")
-      item_event = {
-          "action": "delete",
-          "item_id": item_id
-      }
-      item_event_json = json.dumps(item_event).encode("utf-8")
-      await producer.send_and_wait("inventory-add-stock-response", item_event_json)
+    #   item_event = {
+    #       "action": "delete",
+    #       "item_id": item_id
+    #   }
+    #   item_event_json = json.dumps(item_event).encode("utf-8")
+      pb_data = Inventory(action="delete",
+                          item_id=item_id)
+      serialized_pb_data = pb_data.SerializeToString()
+      print("Serialized Pb Data: ",serialized_pb_data)
+      await producer.send_and_wait("inventory-add-stock-response", serialized_pb_data)
       return {"status":"Inventory deleted Successfully"}
 
 
@@ -124,13 +128,22 @@ async def update_single_inventoryitem(item_id: int,
         inventory_item = get_inventory_item_by_id(inventory_item_id=item_id, session=session)
         if not inventory_item:
            raise HTTPException(status_code=404, detail=f"Inventory not found with id:{item_id}")
-        item_dict = {field: getattr(item, field) for field in item.model_dump()}
-        item_event = {
-            "action": "update",
-            "item_id": item_id,
-            "item": item_dict
-        }
-        item_event_json = json.dumps(item_event).encode("utf-8")
-        await producer.send_and_wait("inventory-add-stock-response", item_event_json)
+        # item_dict = {field: getattr(item, field) for field in item.model_dump()}
+        # item_event = {
+        #     "action": "update",
+        #     "item_id": item_id,
+        #     "item": item_dict
+        # }
+        # item_event_json = json.dumps(item_event).encode("utf-8")
+
+        inventory_pb_data = Inventory(product_id = item.product_id,
+                                    variant_id = item.variant_id,
+                                    quantity = item.quantity,
+                                    status = item.status,
+                                    action = "update",
+                                    item_id = item_id)
+        inventory_serialized_data = inventory_pb_data.SerializeToString()
+        print("Inventory_Serialize_Data: ",inventory_serialized_data )
+        await producer.send_and_wait("inventory-add-stock-response", inventory_serialized_data)
 
         return item

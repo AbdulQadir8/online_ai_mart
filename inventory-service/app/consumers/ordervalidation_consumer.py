@@ -1,9 +1,8 @@
 from aiokafka import AIOKafkaProducer, AIOKafkaConsumer
 import logging
 import json
-import asyncio
 from app.crud.inventory_crud import get_quantity_value, decrease_quantity_value
-from app.deps import get_session, get_kafka_producer
+from app.deps import get_session
 
 logging.basicConfig(level=logging.INFO)
 
