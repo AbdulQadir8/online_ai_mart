@@ -41,7 +41,7 @@ app = FastAPI(lifespan=lifespan, title="Notification Service api with DB",
 
 @app.get("/")
 def read_root():
-    return {"App1": "Notification Service"}
+    return {"App": "Notification Service"}
 @app.post("/notifications/")
 async def create_notification(data: CreateNotification,
                               producer: Annotated[AIOKafkaProducer, Depends(get_kafka_producer)]):

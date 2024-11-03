@@ -57,7 +57,7 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login-endpoint")
 
 @app.get("/")
 def read_root():
-    return {"Hellow": "Order Service"}
+    return {"Hellow1": "Order Service"}
 
 @app.post("/login-endpoint", tags=["Wrapper Auth"])
 def get_login_for_access_token(form_data: Annotated[OAuth2PasswordRequestForm, Depends(OAuth2PasswordRequestForm)]):

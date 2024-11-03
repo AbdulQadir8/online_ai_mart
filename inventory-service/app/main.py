@@ -47,7 +47,7 @@ app = FastAPI(
 
 @app.get("/")
 def read_root():
-    return {"Hello": "Inventory Service"}
+    return {"Hello1": "Inventory Service"}
 
 
 @app.post("/login-endpoint", tags=["Wrapper Auth"])
