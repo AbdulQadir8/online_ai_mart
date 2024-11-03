@@ -13,7 +13,7 @@ from app.deps import get_kafka_producer, get_session
 from app.models.order_model import CreateOrder, Order, OrderItem, UpdateOrder, UpdateItem, OrderItem
 from app.consumers.order_consumer import consume_messages
 from app.core.requests import get_current_user, login_for_access_token
-from app.proto.order_pb2 import OrderMessage, ItemMessage
+from app.proto import order_pb2
 
 import logging
 logging.basicConfig(level=logging.INFO)
@@ -57,7 +57,7 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login-endpoint")
 
 @app.get("/")
 def read_root():
-    return {"Hellow": "Order Service1."}
+    return {"Hellow": "Order Service"}
 
 @app.post("/login-endpoint", tags=["Wrapper Auth"])
 def get_login_for_access_token(form_data: Annotated[OAuth2PasswordRequestForm, Depends(OAuth2PasswordRequestForm)]):
@@ -70,28 +70,34 @@ async def create_order(order_data: CreateOrder,
                        user_data: Annotated[str | None, Depends(get_current_user)]):
     """ Create a new inventory item and send it to Kafka"""
       
-    # Convert order_data to a dictionary and handle datetime fields
-    # order_dict = order_data.model_dump()
-    # order_dict["user_id"] = user_data["id"]
-    # order_dict["user_email"] = user_data["email"]
-    # order_dict["created_at"] = order_data.created_at.isoformat()
-    # order_dict["updated_at"] = order_data.updated_at.isoformat()
-    # logging.info(f"OrderDict:{order_dict}")
-    # order_json = json.dumps(order_dict).encode("utf-8")
-    # print(f"Order Json: {order_json}")
-    pb_order_data = OrderMessage(status=order_data.status,
-                    total_amount=order_data.total_amount,
-                    created_at=order_data.created_at,
-                    updated_at=order_data.updated_at,
-                    user_id=user_data["id"],
-                    user_email=user_data["email"],
-                    items=ItemMessage(product_id=order_data.items[0].product_id,
-                                      quantity=order_data.items[0].quantity,
-                                      price=order_data.items[0].price)
-            )
+
+    pb_order_data = order_pb2.OrderMessage(
+        user_id=user_data["id"],
+        user_email=user_data["email"],
+        status=order_data.status,  
+        total_amount=order_data.total_amount,
+        created_at=order_data.created_at.isoformat(),
+        updated_at=order_data.updated_at.isoformat(),
+        items= str({
+            "product_id":order_data.items[0].product_id,
+            "quantity":order_data.items[0].quantity,
+            "price":order_data.items[0].price})
+    )
+
     print(f"Order Protobuf Data: {pb_order_data}")
     serialized_data = pb_order_data.SerializeToString()
     print("Order Serialized_data: ",serialized_data)
+
+    # Deserialize the UserProfile message
+    deserialized_order_data = order_pb2.OrderMessage()
+    deserialized_order_data.ParseFromString(serialized_data)
+
+    # Accessing data from the deserialized attributes
+    print("Deserialized Data:", deserialized_order_data)
+    # for item in deserialized_order_data.items:
+    #     print(f"product_id: {item.product_id}")
+    #     print(f"Quantity: {item.quantity}")
+    #     print(f"Price {item.price}")
 
     #Produce Message
     await producer.send_and_wait("order_events",serialized_data)

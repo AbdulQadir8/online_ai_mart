@@ -11,3 +11,4 @@ message Inventory {
     string action = 5;
     int32 item_id = 6;
 }
+

@@ -11,12 +11,3 @@ message OrderMessage {
     string updated_at = 6;
     string items = 7;
 }
-
-message NotificationMessage {
-    int32 user_id = 1;
-    string email = 2;
-    string message = 3;
-    string subject = 4;
-    string notification_type = 5;
-}
-

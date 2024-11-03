@@ -47,7 +47,7 @@ app = FastAPI(
 
 @app.get("/")
 def read_root():
-    return {"Hello": "Inventory Service1"}
+    return {"Hello": "Inventory Service"}
 
 
 @app.post("/login-endpoint", tags=["Wrapper Auth"])
@@ -64,13 +64,6 @@ def get_login_for_access_token(form_data: Annotated[OAuth2PasswordRequestForm, D
 async def create_new_inventory_item(item: CreateInventoryItem, producer: Annotated[AIOKafkaProducer, Depends(get_kafka_producer)]):
     """ Create a new inventory item and send it to Kafka"""
 
-    # item_dict = {field: getattr(item, field) for field in item.model_dump()}
-    # item_event = {"action":"create",
-    #               "item":item_dict}
-    # item_json = json.dumps(item_event).encode("utf-8")
-    # print("item_JSON:", item_json)
-    # # Produce message
-    # await producer.send_and_wait("AddStock", item_json)
     proto_data = Inventory(product_id=item.product_id,
                 variant_id=item.variant_id,
                 quantity=item.quantity,

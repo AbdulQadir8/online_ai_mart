@@ -3,6 +3,10 @@ import logging
 import json
 from app.crud.inventory_crud import get_quantity_value, decrease_quantity_value
 from app.deps import get_session
+from google.protobuf.json_format import MessageToDict
+import ast
+
+from app.proto import order_pb2
 
 logging.basicConfig(level=logging.INFO)
 
@@ -28,16 +32,32 @@ async def consume_order_messages(topic, bootstrap_servers):
                 logging.info(f"Received message on topic {message.topic} at offset {message.offset}")
                 logging.info(f"Message Value: {message.value}")
 
-                # Extract Quantity value
-                order_data = json.loads(message.value.decode())
-                logging.info(f"Decoded order data: {order_data}")
-                orderitem = order_data["items"]
-                logging.info(f"Items:{orderitem}")
+                # Log the length of the message for debugging
+                logging.info(f"Length of received message: {len(message.value)} bytes")
 
-                product_id = orderitem[0].get("product_id")
-                quantity_value = orderitem[0].get("quantity")
+                # Attempt to deserialize the Protobuf message
+                protobuf_message = order_pb2.OrderMessage()
+                
+                # Log before parsing
+                logging.info("Attempting to deserialize message...")
+                
+                protobuf_message.ParseFromString(message.value)
+
+                # Accessing data from the deserialized attributes
+                logging.info(f"Deserialized Data:, {protobuf_message}")
+            
+                item = ast.literal_eval(protobuf_message.items)
+                logging.info(f"Item: {item}")
+                product_id = item["product_id"]
+                quantity_value = item["quantity"]
+                price = item["price"]
+
+   
+
+             
                 logging.info(f"Product ID:, {product_id}")
                 logging.info(f"Quantity Value:, {quantity_value}")
+                logging.info(f"Price: {price}")
 
                 # Check if Product Id is Valid
                 with next(get_session()) as session:
