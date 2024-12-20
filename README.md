@@ -32,8 +32,8 @@ The Online Mart API is a comprehensive suite of microservices designed to manage
 ### Steps
 1. **Clone the repository:**
     ```bash
-    git clone https://github.com/AbdulQadir8/online-mart-api.git
-    cd online-mart-api
+    git clone https://github.com/AbdulQadir8/online-ai-mart.git
+    cd online-ai-mart
     ```
 
 2. **Set up environment variables:**
@@ -106,7 +106,7 @@ Contributions are welcome! Please create a pull request or open an issue to disc
 This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
 
 ## Contact
-- **Email:** [your.email@example.com](mailto:your.email@example.com)
+- **Email:** [aq98123@gmail.com](mailto:aq98123@gmail.com)
 - **GitHub:** [AbdulQadir8](https://github.com/AbdulQadir8)
 
 Thank you for using the Online Mart API! If you have any questions or need further assistance, feel free to reach out.
